@@ -21,7 +21,7 @@ int main(int argc, char **argv)
     // ss << "hello world" << count;
     // roomba_auto.data = ss.str();
 
-    ROS_INFO("%s", roomba_auto.cntl.linear.x);
+    ROS_INFO("%f", roomba_auto.cntl.linear.x);
 
     roomba_auto_pub.publish(roomba_auto);
 
