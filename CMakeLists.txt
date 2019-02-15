@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   roomba_500driver_meiji
+  nav_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -202,5 +203,7 @@ include_directories(
 add_executable(roomba_auto_test src/roomba_auto_test.cpp)
 target_link_libraries(roomba_auto_test ${catkin_LIBRARIES})
 add_dependencies(roomba_auto_test chibi19_a_generate_messages_cpp)
+
+
 
 #add_executable(
