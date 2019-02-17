@@ -204,6 +204,9 @@ add_executable(roomba_auto_test src/roomba_auto_test.cpp)
 target_link_libraries(roomba_auto_test ${catkin_LIBRARIES})
 add_dependencies(roomba_auto_test chibi19_a_generate_messages_cpp)
 
+add_executable(linear_test src/linear_test.cpp)
+target_link_libraries(linear_test ${catkin_LIBRARIES})
+add_dependencies(linear_test chibi19_a_generate_messages_cpp)
 
 
 #add_executable(
