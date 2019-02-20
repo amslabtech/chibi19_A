@@ -31,8 +31,7 @@ int main(int argc, char **argv)
   {
     roomba_500driver_meiji::RoombaCtrl roomba_auto;
 
-    roomba_auto.mode = 11;
-   
+    roomba_auto.mode = 11; 
 
     if(roomba_odom.pose.pose.position.x >= 3.0f && flag){
 	 roomba_auto.cntl.linear.x = 0.0f;
