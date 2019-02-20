@@ -24,16 +24,28 @@ int main(int argc, char **argv)
 
   ros::Rate loop_rate(10);
 
+
+  bool flag = true;
+
   while (ros::ok())
   {
     roomba_500driver_meiji::RoombaCtrl roomba_auto;
 
-    roomba_auto.mode = 11;
-   
+    roomba_auto.mode = 11; 
 
-    if(roomba_odom.pose.pose.position.x >= 3.0f && roomba_odom.pose.pose.orientation.z < 2.0f){
+    if(roomba_odom.pose.pose.position.x >= 3.0f && flag){
 	 roomba_auto.cntl.linear.x = 0.0f;
 	 roomba_auto.cntl.angular.z = 0.5f;
+
+	 if(roomba_odom.pose.pose.orientation.z < 0.0f){
+	     flag = false;
+	 }
+    }
+    else if(roomba_odom.pose.pose.orientation.z < 0.0f){
+
+	 roomba_auto.cntl.linear.x = 0.0f;
+	 roomba_auto.cntl.angular.z = 0.5f;
+
     }
     else{
 	 roomba_auto.cntl.linear.x = 0.5f;
