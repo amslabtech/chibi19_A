@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   roomba_500driver_meiji
   nav_msgs
+  sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -207,6 +208,10 @@ add_dependencies(roomba_auto_test chibi19_a_generate_messages_cpp)
 add_executable(linear_test src/linear_test.cpp)
 target_link_libraries(linear_test ${catkin_LIBRARIES})
 add_dependencies(linear_test chibi19_a_generate_messages_cpp)
+
+add_executable(scan_test src/scan_test.cpp)
+target_link_libraries(scan_test ${catkin_LIBRARIES})
+add_dependencies(scan_test chibi19_a_generate_messages_cpp)
 
 
 #add_executable(

@@ -17,8 +17,9 @@ void chatterCallback(const nav_msgs::Odometry::ConstPtr& msg)
 
 void scan_callback(const sensor_msgs::LaserScan::ConstPtr& scan_msg)
 {
-	roomba_scan = *scan_msg;
+        roomba_scan = *scan_msg;
 }
+
 
 int main(int argc, char **argv)
 {
@@ -31,16 +32,28 @@ int main(int argc, char **argv)
 
   ros::Rate loop_rate(10);
 
+
+  bool flag = true;
+
   while (ros::ok())
   {
     roomba_500driver_meiji::RoombaCtrl roomba_auto;
 
-    roomba_auto.mode = 11;
-   
+    roomba_auto.mode = 11; 
 
-    if(roomba_odom.pose.pose.position.x >= 3.0f && roomba_odom.pose.pose.orientation.z < 2.0f){
+    if(roomba_odom.pose.pose.position.x >= 3.0f && flag){
 	 roomba_auto.cntl.linear.x = 0.0f;
-	 roomba_auto.cntl.angular.z = 0.5f;
+	 roomba_auto.cntl.angular.z = 0.7f;
+
+	 if(roomba_odom.pose.pose.orientation.z < 0.0f){
+	     flag = false;
+	 }
+    }
+    else if(roomba_odom.pose.pose.orientation.z < 0.0f && !flag){
+
+	 roomba_auto.cntl.linear.x = 0.0f;
+	 roomba_auto.cntl.angular.z = 0.7f;
+
     }
     else{
 	 roomba_auto.cntl.linear.x = 0.5f;
@@ -56,9 +69,9 @@ int main(int argc, char **argv)
     ROS_INFO("front_range: %f", roomba_scan.ranges[front_scan_pos]);
 
     if(roomba_scan.ranges[front_scan_pos] < 0.5f ){
-	    roomba_auto.mode = 0;
+            roomba_auto.mode = 0;
     }
-    
+
     ros::spinOnce();
 
     loop_rate.sleep();
