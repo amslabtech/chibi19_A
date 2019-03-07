@@ -213,5 +213,6 @@ add_executable(scan_test src/scan_test.cpp)
 target_link_libraries(scan_test ${catkin_LIBRARIES})
 add_dependencies(scan_test chibi19_a_generate_messages_cpp)
 
-
-#add_executable(
+add_executable(dwa src/dwa.cpp)
+target_link_libraries(dwa ${catkin_LIBRARIES})
+add_dependencies(dwa chibi19_a_generate_messages_cpp)
