@@ -26,8 +26,8 @@ class image_converter:
     
     gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
     cv_image2 = cv2.GaussianBlur(gray_image,(3,3),0)
-
-    ret, thresh = cv2.threshold(gray_image,200,255,0)
+    cv_image2 = cv2.medianBlur(cv_image2,5)
+    ret, thresh = cv2.threshold(cv_image2,200,255,0)
    # th2 = cv2.adaptiveThreshold(cv_image2,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,21,20)
     image, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
 
@@ -55,7 +55,8 @@ class image_converter:
    # cv_image3 = cv2.Canny(gray_image, 50, 150.0)
    # cv_image3 = cv2.Laplacian(cv_image2, cv2.CV_32F)
     #cv2.imshow("Image window", cv_image2)
-    cv2.imshow("Image window", cv_image)
+    cv2.imshow("Image window1", thresh)
+    cv2.imshow("Image window2", cv_image)
     cv2.waitKey(3)
 
     try:
