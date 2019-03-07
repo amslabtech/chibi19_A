@@ -352,7 +352,7 @@ int main(int argc, char **argv)
     //roomba_auto.cntl.linear.y = output_u[1];
     roomba_auto.cntl.angular.z = output_u[1];
 
-    roomba_auto_pub.pulish(roomba_auto);
+    roomba_auto_pub.publish(roomba_auto);
 
     loop_rate.sleep();
   }
