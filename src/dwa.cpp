@@ -3,6 +3,7 @@
 #include "roomba_500driver_meiji/RoombaCtrl.h"
 #include "nav_msgs/Odometry.h"
 #include "sensor_msgs/LaserScan.h"
+#include "tf/transform_listener.h"
 #include <sstream>
 #include <cmath>
 #include <vector>
@@ -328,7 +329,7 @@ int main(int argc, char **argv)
     float x[] = {
       (float)roomba_odom.pose.pose.position.x,
       (float)roomba_odom.pose.pose.position.y,
-      (float)roomba_odom.pose.pose.orientation.z,
+      (float)tf::getYaw(roomba_odom.pose.pose.orientation),
       u,//(float)roomba_odom.twist.twist.linear.x,
       (float)roomba_odom.twist.twist.angular.z
     };
