@@ -275,6 +275,24 @@ int is_goal(const float x[], const float goal[])
   }
 }
 
+int is_normalized()
+{
+  double square = roomba_odom.pose.pose.orientation.x *\
+      roomba_odom.pose.pose.orientation.x +\
+      roomba_odom.pose.pose.orientation.y *\
+      roomba_odom.pose.pose.orientation.y +\
+      roomba_odom.pose.pose.orientation.z *\
+      roomba_odom.pose.pose.orientation.z +\
+      roomba_odom.pose.pose.orientation.w *\
+      roomba_odom.pose.pose.orientation.w;
+  
+  if(std::fabs(square - 1.0) > 0.1){
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 void chatter_callback(const nav_msgs::Odometry::ConstPtr& msg)
 {
   roomba_odom = *msg;
@@ -313,24 +331,25 @@ int main(int argc, char **argv)
   {
     ros::spinOnce();
 
-    if(!roomba_scan.ranges.size()){
+    if(!roomba_scan.ranges.size() || is_normalized()){
       continue;
       ROS_INFO("roomba_scan.ranges.size()=0");
     }
-
+    /*
     float u = std::sqrt(
       (float)roomba_odom.twist.twist.linear.x*\
       (float)roomba_odom.twist.twist.linear.x +\
       (float)roomba_odom.twist.twist.linear.y*\
       (float)roomba_odom.twist.twist.linear.y
     );
+    */
 
     //roomba_odom.pose.pose.orientation.xは絶対座標だったので書き直し
     float x[] = {
       (float)roomba_odom.pose.pose.position.x,
       (float)roomba_odom.pose.pose.position.y,
       (float)tf::getYaw(roomba_odom.pose.pose.orientation),
-      u,//(float)roomba_odom.twist.twist.linear.x,
+      (float)roomba_odom.twist.twist.linear.x,
       (float)roomba_odom.twist.twist.angular.z
     };
 
