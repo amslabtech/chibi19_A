@@ -61,6 +61,8 @@ int main(int argc, char **argv)
       roomba_auto.cntl.angular.z = 0.0f;
     }
 
+    roomba_auto_pub.pulish(roomba_auto);
+
     ros::spinOnce();
 
     loop_rate.sleep();
@@ -68,4 +70,3 @@ int main(int argc, char **argv)
   
   return 0;
 }
-
