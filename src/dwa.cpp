@@ -58,7 +58,7 @@ void calc_dynamic_window(float dw[], const float x[])
   dw[3] = std::min(Vs[3], Vd[3]);
 }
 
-void calc_trajectory(std::vector<float*> &traj, const float xinit[], const float v, const float y)
+void calc_trajectory(std::vector<float*>& traj, const float xinit[], const float v, const float y)
 {
   float u[] = {v, y};
   float x[] = {
@@ -78,7 +78,7 @@ void calc_trajectory(std::vector<float*> &traj, const float xinit[], const float
   ROS_INFO("calc_traj traj.size() = %ld\n", traj.size());
 }
 
-float calc_to_goal_cost(const std::vector<float*> &traj, const float goal[])
+float calc_to_goal_cost(const std::vector<float*>& traj, const float goal[])
 {
   ROS_INFO("calc_to_goal_cost in\n");
   ROS_INFO("calc_to_goal_cost %ld\n", traj.size());
@@ -88,7 +88,7 @@ float calc_to_goal_cost(const std::vector<float*> &traj, const float goal[])
   return to_goal_cost_gain * (M_PI - error_angle);
 }
 
-float calc_speed_cost(const std::vector<float*> &traj)
+float calc_speed_cost(const std::vector<float*>& traj)
 {
   float *p = traj.back();
   float error_speed = max_speed - p[3];
@@ -96,7 +96,7 @@ float calc_speed_cost(const std::vector<float*> &traj)
   return speed_cost_gain * error_speed;
 }
 
-float calc_obstacle_cost(const std::vector<float*> &traj, std::vector<float> ob)
+float calc_obstacle_cost(const std::vector<float*>& traj, const std::vector<float> ob)
 {
   int skip_i = 2;
   float *local_origin = traj.front();
