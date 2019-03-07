@@ -196,21 +196,19 @@ int is_goal(const float x[], const float goal[])
 
 int is_normalized()
 {
-  double square = roomba_odom.pose.pose.orientation.x *\
-      roomba_odom.pose.pose.orientation.x +\
-      roomba_odom.pose.pose.orientation.y *\
-      roomba_odom.pose.pose.orientation.y +\
-      roomba_odom.pose.pose.orientation.z *\
-      roomba_odom.pose.pose.orientation.z +\
-      roomba_odom.pose.pose.orientation.w *\
-      roomba_odom.pose.pose.orientation.w;
+  double square_sum = roomba_odom.pose.pose.orientation.x *\
+                      roomba_odom.pose.pose.orientation.x +\
+                      roomba_odom.pose.pose.orientation.y *\
+                      roomba_odom.pose.pose.orientation.y +\
+                      roomba_odom.pose.pose.orientation.z *\
+                      roomba_odom.pose.pose.orientation.z +\
+                      roomba_odom.pose.pose.orientation.w *\
+                      roomba_odom.pose.pose.orientation.w;
   
-  if(std::fabs(square - 1.0) > 0.1){
-  ROS_INFO("square = %lf\n",square);
-    return 1;
+  if(std::fabs(square_sum - 1.0) > 0.1){
+    return false;
   } else {
-  ROS_INFO("square = %lf\n",square);
-    return 0;
+    return true;
   }
 }
 
@@ -247,7 +245,7 @@ int main(int argc, char **argv)
   {
     ros::spinOnce();
 
-    if(!roomba_scan.ranges.size() || is_normalized()){
+    if(!roomba_scan.ranges.size() || !is_normalized()){
       continue;
     }
 
