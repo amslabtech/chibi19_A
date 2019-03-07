@@ -317,12 +317,19 @@ int main(int argc, char **argv)
       ROS_INFO("roomba_scan.ranges.size()=0");
     }
 
+    float u = std::sqrt(
+      (float)roomba_odom.twist.twist.linear.x*\
+      (float)roomba_odom.twist.twist.linear.xi +\
+      (float)roomba_odom.twist.twist.linear.y*\
+      (float)roomba_odom.twist.twist.linear.y;
+    );
+
     //roomba_odom.pose.pose.orientation.xは絶対座標だったので書き直し
     float x[] = {
       (float)roomba_odom.pose.pose.position.x,
       (float)roomba_odom.pose.pose.position.y,
       (float)roomba_odom.pose.pose.orientation.z,
-      (float)roomba_odom.twist.twist.linear.x,
+      u,//(float)roomba_odom.twist.twist.linear.x,
       (float)roomba_odom.twist.twist.angular.z
     };
 
