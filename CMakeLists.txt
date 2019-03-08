@@ -219,6 +219,7 @@ add_executable(dwa src/dwa.cpp)
 target_link_libraries(dwa ${catkin_LIBRARIES})
 add_dependencies(dwa chibi19_a_generate_messages_cpp)
 
-add_executable(amcl src/amcl.cpp)
-target_link_libraries(amcl ${catkin_LIBRARIES})
+add_executable(amcll src/amcll.cpp)
+target_link_libraries(amcll ${catkin_LIBRARIES})
+add_dependencies(amcll chibi19_a_generate_messages_cpp)
 

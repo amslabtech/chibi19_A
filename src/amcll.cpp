@@ -100,7 +100,7 @@ void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 
 int main(int argc, char** argv)
 {
-	ros::init(argc, argv, "amcl");
+	ros::init(argc, argv, "amcll");
 	ros::NodeHandle nh_;
 	ros::NodeHandle private_nh_("~");
 
