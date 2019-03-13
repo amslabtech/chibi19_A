@@ -8,7 +8,8 @@
 #include<stdlib.h>
 #include<time.h>
 #include<math.h>
-
+#include<queue>
+#include<string.h>
 
 typedef struct
 {
@@ -26,12 +27,21 @@ public:
 
 };
 
+class CellData
+{
+public:
+	unsigned int i_f, j_f;//free cell
+	unsigned int i_o, j_o;//occupied cell
+	double *occ_dist;
+};
+
 class Particle
 {
 public:
 	Particle(void);
 	void init_set(void);
 	void move(Odom_data);
+	void sense(void);    
     
 	pose_vector p_data;
 	
@@ -41,20 +51,37 @@ private:
 
 };
 
-
+int map_index(int, int);
+bool map_valid(int, int);
 double normalize(double);
 double angle_diff(double, double);
 double gaussian(double);//Box-Muller
+void enqueue(int, int, int, int, std::priority_queue<CellData>&, unsigned char*, int);
+void map_update_cspace(void);
 
 nav_msgs::OccupancyGrid map;
 sensor_msgs::LaserScan laser;
+double *occ_dist;
+
+double init_x;
+double init_y;
+double init_theta;
+double init_x_cov;
+double init_y_cov;
+double init_theta_cov;
 
 double alpha1;
 double alpha2;
 double alpha3;
 double alpha4;
-const int N = 5000;
 
+int max_beam;
+double z_hit;
+double z_rand;
+double sigma_hit;
+double laser_likelihood_max_dist;
+
+const int N = 5000;
 
 bool map_received = false;
 
@@ -75,7 +102,7 @@ void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 	
 	map = *msg;
 
-	free_indices.resize(0);
+/*	free_indices.resize(0);
 	for(int i=0; i < map.info.width; i++){
 		for(int j=0; j < map.info.height; j++){
 			int index = i + j*map.info.width;
@@ -84,12 +111,17 @@ void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 			}
 		}
 	}
+*/	
+	occ_dist = (double*)malloc(sizeof(double) * map.info.width * map.info.height);
 	
 	for(int i=0; i < N; i++){
 		Particle p;
 		p.init_set();
 		p_cloud.push_back(p);
 	}
+	
+	ROS_INFO("Initializing likelihood field");
+	map_update_cspace();
 				
 	map_received = true;
 
@@ -110,7 +142,17 @@ int main(int argc, char** argv)
 	private_nh_.param("alpha2", alpha2, 0.2);
 	private_nh_.param("alpha3", alpha3, 0.2);
 	private_nh_.param("alpha4", alpha4, 0.2);
-
+    private_nh_.param("init_x", init_x, 0.0);
+    private_nh_.param("init_y", init_y, 0.0);
+    private_nh_.param("init_theta", init_theta, 0.0);
+    private_nh_.param("init_x_cov", init_x_cov, 0.5*0.5);
+    private_nh_.param("init_y_cov", init_y_cov, 0.5*0.5);
+    private_nh_.param("init_theta_cov", init_theta_cov, M_PI/12.0 * M_PI/12.0);
+	private_nh_.param("max_beam", max_beam, 30);
+    private_nh_.param("z_hit", z_hit, 0.95);
+    private_nh_.param("z_rand", z_rand, 0.05);
+    private_nh_.param("sigma_hit", sigma_hit, 0.2);
+	private_nh_.param("laser_likelihood_max_dist", laser_likelihood_max_dist, 2.0);
 
 	ros::Publisher pose_pub = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("amcl_pose", 10);
 	ros::Subscriber laser_sub = nh_.subscribe("scan", 10, laserCallback);
@@ -126,7 +168,7 @@ int main(int argc, char** argv)
 	transform.setRotation(q);
 	transform.setOrigin(tf::Vector3(0, 0, 0));
 	previous_transform = tf::StampedTransform(transform, ros::Time::now(), "odom", "base_link");
-	ros::Rate rate(10.0);
+	ros::Rate loop_rate(10.0);
 
 	while(ros::ok())
 	{   
@@ -150,20 +192,33 @@ int main(int argc, char** argv)
 			odom.delta.theta = tf::getYaw(diff_transform.getRotation()); 
 	
 			previous_transform = latest_transform;
-	
+			
+			double total_w = 0.0;
 			for(int i=0; i < N; i++){
 				p_cloud[i].move(odom);
+				p_cloud[i].sense();
+				total_w += p_cloud[i].w; 
 			}
 
 		}
-
-
+		ros::spinOnce();
+		loop_rate.sleep();
+		
 	}
 
-
+	free(occ_dist);
 	return 0;
 }
 
+int map_index(int i, int j)
+{
+	return i + (map.info.width * j);
+}
+
+bool map_valid(int i, int j)
+{
+	return((i >= 0) && (i < map.info.width) && (j >= 0) && (j < map.info.height));
+}
 
 double normalize(double z)
 {
@@ -203,6 +258,86 @@ double gaussian(double sigma)//Box-Muller
 	return (sigma * x2 * sqrt(-2.0*log(w)/w));
 }
 
+bool operator<(const CellData& a, const CellData& b)//ソートの定義
+{
+	return a.occ_dist[map_index(a.i_f, a.j_f)] > b.occ_dist[map_index(b.i_f, b.j_f)];
+}
+
+void enqueue(int i_f, int j_f, int i_o, int j_o, std::priority_queue<CellData>& Q, unsigned char* marked, int cell_radius)
+{
+	if(marked[map_index(i_f, j_f)])//同じセルかどうかチェック
+		return;
+
+	int di = abs(i_f - i_o);//freeのcellとoccupiedのcellの距離(x)
+	int dj = abs(j_f - j_o);//freeのcellとoccupiedのcellの距離(y)
+	double distance = sqrt(pow(di, 2.0) + pow(dj, 2.0));
+
+	if(distance > cell_radius)
+		return;
+
+	occ_dist[map_index(i_f, j_f)] = distance * map.info.resolution;
+
+	CellData cell;//更新
+	cell.i_f = i_f;
+	cell.j_f = j_f;
+	cell.i_o = i_o;
+	cell.j_o = j_o;
+
+	Q.push(cell);
+
+	marked[map_index(i_f, j_f)] = 1;
+
+}
+
+void map_update_cspace(void)
+{
+	unsigned char* marked;//データを取得したcellをmarkする
+	std::priority_queue<CellData> Q;//cellのデータを管理する
+	marked = new unsigned char[map.info.width*map.info.height];
+	memset(marked, 0, sizeof(unsigned char) * map.info.width*map.info.height);//0で初期化
+	int cell_radius = laser_likelihood_max_dist / map.info.resolution;//半径
+
+	CellData cell;
+	cell.occ_dist = occ_dist;
+	for(int i=0; i < map.info.width; i++){
+		cell.i_o = i;
+		cell.i_f = i;
+		for(int j=0; j < map.info.height; j++){
+			
+			if(map.data[map_index(i, j)] == 100){// = occupied
+				occ_dist[map_index(i, j)] = 0.0;
+				cell.j_o = j;
+				cell.j_f = j;
+				marked[map_index(i, j)] = 1;//障害物があったらmark
+				Q.push(cell);//marked = 1のcellをqに入れる
+			}
+			else{
+				occ_dist[map_index(i, j)] = laser_likelihood_max_dist;
+			}
+		}
+	}
+	while(!Q.empty()){//freeのcellのocc_distを計算する
+		CellData current_cell = Q.top();//Qのtopの要素にアクセスする
+		if(current_cell.i_f > 0)
+      		enqueue(current_cell.i_f-1, current_cell.j_f,//i_f-1, j_f, i_o, j_o
+          		current_cell.i_o, current_cell.j_o, Q, marked, cell_radius);
+    	if(current_cell.j_f > 0)
+      		enqueue(current_cell.i_f, current_cell.j_f-1,//i, j-1, src_i, src_j 
+          		current_cell.i_o, current_cell.j_o, Q, marked, cell_radius);
+    	if((int)current_cell.i_f < map.info.width - 1)
+      		enqueue(current_cell.i_f+1, current_cell.j_f,//i+1, j, src_i, src_j 
+          		current_cell.i_o, current_cell.j_o, Q, marked, cell_radius);
+   	 	if((int)current_cell.j_f < map.info.height - 1)
+      		enqueue(current_cell.i_f, current_cell.j_f+1,//i, j+1, src_i, src_j
+          		current_cell.i_o, current_cell.j_o, Q, marked, cell_radius);
+
+	Q.pop();//Qのtopの要素を消す
+	}
+
+  delete[] marked;
+
+}
+
 Particle::Particle(void)
 {
 	p_data.x = 0.0;
@@ -211,7 +346,7 @@ Particle::Particle(void)
 	w = 1.0 / (double)N;
 }
 
-
+/*
 void Particle::init_set(void)
 {
 	unsigned int rand_index = drand48() * free_indices.size();
@@ -222,6 +357,18 @@ void Particle::init_set(void)
 	p_data.y = free_point.second * map.info.resolution;
 	p_data.theta = drand48() * (2* M_PI) - M_PI;
 
+}
+*/
+void Particle::init_set(void)
+{	
+	double x,y;
+	do{
+		p_data.x = init_x + gaussian(init_x_cov);
+		p_data.y = init_y + gaussian(init_y_cov);
+		p_data.theta = init_theta + gaussian(init_theta_cov);
+		x = floor(p_data.x / map.info.resolution + 0.5);
+		y = floor(p_data.y / map.info.resolution + 0.5);
+	}while(map.data[map_index(x, y)] != 0);
 }
 
 void Particle::move(Odom_data ndata)
@@ -252,6 +399,62 @@ void Particle::move(Odom_data ndata)
 		p_data.y += delta_trans_hat * sin(p_data.theta + delta_rot1_hat);
 		p_data.theta += delta_rot1_hat + delta_rot2_hat;
 	}
+}
+
+void Particle::sense(void)
+{
+	int range_count = laser.ranges.size();
+	laser.angle_increment = fmod(laser.angle_increment + 5*M_PI, 2*M_PI) - M_PI;
+	for(int i=0; i < range_count; i++){
+		if(laser.ranges[i] <= laser.range_min){
+			laser.ranges[i] = laser.range_max;
+		}
+	}
+	int step;
+	double z, pz;
+	double p;
+	double obs_range, obs_bearing;
+	double total_weight = 0.0;
+	pose_vector hit;
+
+	p = 1.0;
+
+	double z_hit_demon = 2 * pow(sigma_hit, 2.0);
+	double z_rand_mult = 1.0 / laser.range_max;
+
+	step = (range_count -1) / (max_beam -1);
+
+	if(step < 1)
+		step = 1;
+
+	for(int j=0; j<range_count; j+=step){
+		obs_range = laser.ranges[j];
+		obs_bearing = laser.angle_min + (laser.angle_increment * j);
+
+		if(obs_range >= laser.range_max)
+			continue;
+		if(obs_range != obs_range)
+			continue;
+
+		pz = 0.0;
+		
+		hit.x = p_data.x + obs_range * cos(p_data.theta + obs_bearing);
+		hit.y = p_data.y + obs_range * sin(p_data.theta + obs_bearing);
+
+		int mi = floor(hit.x / map.info.resolution + 0.5);
+		int mj = floor(hit.y / map.info.resolution + 0.5);
+
+		if(!map_valid(mi, mj))
+			z = laser_likelihood_max_dist;
+		else
+			z = occ_dist[map_index(mi, mj)];
+
+		pz += z_hit * exp(-(z * z) / z_hit_demon);
+		pz += z_rand * z_rand_mult;
+
+		p += pow(pz, 3.0);
+	}
+	w = p;
 }
 
 
