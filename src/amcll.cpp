@@ -32,7 +32,7 @@ class CellData
 public:
 	unsigned int i_f, j_f;//free cell
 	unsigned int i_o, j_o;//occupied cell
-	double *occ_dist;
+	double *occ_dist;//障害物までの距離
 };
 
 class Particle
@@ -42,7 +42,6 @@ public:
 	void init_set(void);
 	void move(Odom_data);
 	void sense(void);    
-    
 	pose_vector p_data;
 	
 	double w;
@@ -58,6 +57,7 @@ double angle_diff(double, double);
 double gaussian(double);//Box-Muller
 void enqueue(int, int, int, int, std::priority_queue<CellData>&, unsigned char*, int);
 void map_update_cspace(void);
+void resample(double);
 
 nav_msgs::OccupancyGrid map;
 sensor_msgs::LaserScan laser;
@@ -76,6 +76,8 @@ double alpha3;
 double alpha4;
 
 int max_beam;
+double MAX_RANGE;
+double MIN_RANGE;
 double z_hit;
 double z_rand;
 double sigma_hit;
@@ -127,9 +129,6 @@ void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 
 }
 
-
-
-
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "amcll");
@@ -149,6 +148,8 @@ int main(int argc, char** argv)
     private_nh_.param("init_y_cov", init_y_cov, 0.5*0.5);
     private_nh_.param("init_theta_cov", init_theta_cov, M_PI/12.0 * M_PI/12.0);
 	private_nh_.param("max_beam", max_beam, 30);
+	private_nh_.param("MAX_RANGE", MAX_RANGE, 30.0);
+	private_nh_.param("MIN_RANGE", MIN_RANGE, 0.01);
     private_nh_.param("z_hit", z_hit, 0.95);
     private_nh_.param("z_rand", z_rand, 0.05);
     private_nh_.param("sigma_hit", sigma_hit, 0.2);
@@ -199,7 +200,7 @@ int main(int argc, char** argv)
 				p_cloud[i].sense();
 				total_w += p_cloud[i].w; 
 			}
-
+			resample(total_w);
 		}
 		ros::spinOnce();
 		loop_rate.sleep();
@@ -389,25 +390,28 @@ void Particle::move(Odom_data ndata)
 	delta_rot1_noise = std::min(fabs(angle_diff(delta_rot1, 0.0)), fabs(angle_diff(delta_rot1,0.0)));
 	delta_rot2_noise = std::min(fabs(angle_diff(delta_rot2, 0.0)), fabs(angle_diff(delta_rot2, M_PI)));
 
-	for(int i=0; i < N; i++){
-		delta_rot1_hat = angle_diff(delta_rot1, gaussian(alpha1*pow(delta_rot1_noise,2.0) + alpha2*pow(delta_trans, 2.0)));
-		delta_trans_hat = delta_trans - gaussian(alpha3*pow(delta_trans, 2.0) + alpha4*pow(delta_rot1_noise, 2.0) + alpha4*pow(delta_rot2_noise, 2.0));
-		delta_rot2_hat = angle_diff(delta_rot2, gaussian(alpha1*pow(delta_rot2_noise, 2.0) + alpha2*pow(delta_trans, 2.0)));
+	delta_rot1_hat = angle_diff(delta_rot1, gaussian(alpha1*pow(delta_rot1_noise,2.0) + alpha2*pow(delta_trans, 2.0)));
+	delta_trans_hat = delta_trans - gaussian(alpha3*pow(delta_trans, 2.0) + alpha4*pow(delta_rot1_noise, 2.0) + alpha4*pow(delta_rot2_noise, 2.0));
+	delta_rot2_hat = angle_diff(delta_rot2, gaussian(alpha1*pow(delta_rot2_noise, 2.0) + alpha2*pow(delta_trans, 2.0)));
 
+	p_data.x += delta_trans_hat * cos(p_data.theta + delta_rot1_hat);
+	p_data.y += delta_trans_hat * sin(p_data.theta + delta_rot1_hat);
+	p_data.theta += delta_rot1_hat + delta_rot2_hat;
 	
-		p_data.x += delta_trans_hat * cos(p_data.theta + delta_rot1_hat);
-		p_data.y += delta_trans_hat * sin(p_data.theta + delta_rot1_hat);
-		p_data.theta += delta_rot1_hat + delta_rot2_hat;
-	}
 }
 
 void Particle::sense(void)
 {
 	int range_count = laser.ranges.size();
+	double range_min;
+	double range_max;
+
+	range_min = std::max(laser.range_min, (float)MIN_RANGE);
+	range_max = std::min(laser.range_max, (float)MAX_RANGE);
 	laser.angle_increment = fmod(laser.angle_increment + 5*M_PI, 2*M_PI) - M_PI;
 	for(int i=0; i < range_count; i++){
-		if(laser.ranges[i] <= laser.range_min){
-			laser.ranges[i] = laser.range_max;
+		if(laser.ranges[i] <= range_min){
+			laser.ranges[i] = range_max;
 		}
 	}
 	int step;
@@ -431,20 +435,20 @@ void Particle::sense(void)
 		obs_range = laser.ranges[j];
 		obs_bearing = laser.angle_min + (laser.angle_increment * j);
 
-		if(obs_range >= laser.range_max)
+		if(obs_range >= range_max)
 			continue;
-		if(obs_range != obs_range)
+		if(obs_range != obs_range)//check for NaN
 			continue;
 
 		pz = 0.0;
 		
-		hit.x = p_data.x + obs_range * cos(p_data.theta + obs_bearing);
+		hit.x = p_data.x + obs_range * cos(p_data.theta + obs_bearing);//laserの端点
 		hit.y = p_data.y + obs_range * sin(p_data.theta + obs_bearing);
 
 		int mi = floor(hit.x / map.info.resolution + 0.5);
 		int mj = floor(hit.y / map.info.resolution + 0.5);
 
-		if(!map_valid(mi, mj))
+		if(!map_valid(mi, mj))//一番近い障害物までの距離を取得
 			z = laser_likelihood_max_dist;
 		else
 			z = occ_dist[map_index(mi, mj)];
@@ -457,7 +461,11 @@ void Particle::sense(void)
 	w = p;
 }
 
+void resample(double total_w)
+{
 
+
+}
 
 
 
