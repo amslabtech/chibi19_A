@@ -1,7 +1,7 @@
 #include<ros/ros.h>
 #include<sensor_msgs/LaserScan.h>
 #include<nav_msgs/OccupancyGrid.h>
-#include<geometry_msgs/PoseWithCovarianceStamped.h>
+#include<geometry_msgs/PoseStamped.h>
 #include<tf/transform_broadcaster.h>
 #include<tf/transform_listener.h>
 
@@ -39,7 +39,7 @@ class Particle
 {
 public:
 	Particle(void);
-	void init_set(void);
+	void init_set(double, double, double, double, double, double);
 	void move(Odom_data);
 	void sense(void);    
 	pose_vector p_data;
@@ -58,9 +58,11 @@ double gaussian(double);//Box-Muller
 void enqueue(int, int, int, int, std::priority_queue<CellData>&, unsigned char*, int);
 void map_update_cspace(void);
 void resample(double);
+void estimate_pose(void);
 
 nav_msgs::OccupancyGrid map;
 sensor_msgs::LaserScan laser;
+geometry_msgs::PoseStamped estimated_pose;
 double *occ_dist;
 
 double init_x;
@@ -69,6 +71,13 @@ double init_theta;
 double init_x_cov;
 double init_y_cov;
 double init_theta_cov;
+double cov_x;
+double cov_y;
+double cov_theta;
+double alpha_slow;
+double alpha_fast;
+double w_slow;
+double w_fast;
 
 double alpha1;
 double alpha2;
@@ -82,18 +91,30 @@ double z_hit;
 double z_rand;
 double sigma_hit;
 double laser_likelihood_max_dist;
-
+int range_count;
 const int N = 5000;
 
 bool map_received = false;
 
-static std::vector<Particle> p_cloud;
-static std::vector<std::pair<int, int>> free_indices;
+std::vector<Particle> p_cloud;
+std::vector<std::pair<int, int>> free_indices;
 
 void laserCallback(const sensor_msgs::LaserScanConstPtr& msg)
 {
 	laser = *msg;
+	
+	range_count = laser.ranges.size();
+	double range_min;
+	double range_max;
 
+	range_min = std::max(laser.range_min, (float)MIN_RANGE);
+	range_max = std::min(laser.range_max, (float)MAX_RANGE);
+	laser.angle_increment = fmod(laser.angle_increment + 5*M_PI, 2*M_PI) - M_PI;
+	for(int i=0; i < range_count; i++){
+		if(laser.ranges[i] <= range_min){
+			laser.ranges[i] = range_max;
+		}
+	}
 }
 
 void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
@@ -118,7 +139,7 @@ void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 	
 	for(int i=0; i < N; i++){
 		Particle p;
-		p.init_set();
+		p.init_set(init_x, init_y, init_theta, init_x_cov, init_y_cov, init_theta_cov);
 		p_cloud.push_back(p);
 	}
 	
@@ -135,27 +156,37 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh_;
 	ros::NodeHandle private_nh_("~");
 
-	srand((unsigned int)time(NULL));
-
 	private_nh_.param("alpha1", alpha1, 0.2);
 	private_nh_.param("alpha2", alpha2, 0.2);
 	private_nh_.param("alpha3", alpha3, 0.2);
 	private_nh_.param("alpha4", alpha4, 0.2);
-    private_nh_.param("init_x", init_x, 0.0);
-    private_nh_.param("init_y", init_y, 0.0);
-    private_nh_.param("init_theta", init_theta, 0.0);
-    private_nh_.param("init_x_cov", init_x_cov, 0.5*0.5);
-    private_nh_.param("init_y_cov", init_y_cov, 0.5*0.5);
-    private_nh_.param("init_theta_cov", init_theta_cov, M_PI/12.0 * M_PI/12.0);
+	private_nh_.param("init_x", init_x, 0.0);
+	private_nh_.param("init_y", init_y, 0.0);
+	private_nh_.param("init_theta", init_theta, 0.0);
+	private_nh_.param("init_x_cov", init_x_cov, 0.5*0.5);
+	private_nh_.param("init_y_cov", init_y_cov, 0.5*0.5);
+	private_nh_.param("init_theta_cov", init_theta_cov, M_PI/12.0 * M_PI/12.0);
 	private_nh_.param("max_beam", max_beam, 30);
 	private_nh_.param("MAX_RANGE", MAX_RANGE, 30.0);
 	private_nh_.param("MIN_RANGE", MIN_RANGE, 0.01);
-    private_nh_.param("z_hit", z_hit, 0.95);
-    private_nh_.param("z_rand", z_rand, 0.05);
-    private_nh_.param("sigma_hit", sigma_hit, 0.2);
+	private_nh_.param("z_hit", z_hit, 0.95);
+	private_nh_.param("z_rand", z_rand, 0.05);
+	private_nh_.param("sigma_hit", sigma_hit, 0.2);
 	private_nh_.param("laser_likelihood_max_dist", laser_likelihood_max_dist, 2.0);
+	private_nh_.param("alpha_fast", alpha_fast, 0.1);
+	private_nh_.param("alpha_slow", alpha_slow, 0.001);
 
-	ros::Publisher pose_pub = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("amcl_pose", 10);
+	srand((unsigned int)time(NULL));
+	range_count = 0;
+	cov_x = init_x_cov;
+	cov_y = init_y_cov;
+	cov_theta = init_theta_cov;
+	estimated_pose.header.frame_id = "map";
+	estimated_pose.pose.position.x = init_x;
+	estimated_pose.pose.position.y = init_y;
+	estimated_pose.pose.position.z = 0.0;
+	quaternionTFToMsg(tf::createQuaternionFromYaw(init_theta), estimated_pose.pose.orientation);	
+	ros::Publisher pose_pub = nh_.advertise<geometry_msgs::PoseStamped>("amcl_pose", 10);
 	ros::Subscriber laser_sub = nh_.subscribe("scan", 10, laserCallback);
 	ros::Subscriber map_sub = nh_.subscribe("map", 10, mapCallback);
 	
@@ -173,7 +204,7 @@ int main(int argc, char** argv)
 
 	while(ros::ok())
 	{   
-		if(map_received){
+		if(map_received && range_count){
 			Odom_data odom; 
 			try{
 				ros::Time now = ros::Time::now();
@@ -201,6 +232,8 @@ int main(int argc, char** argv)
 				total_w += p_cloud[i].w; 
 			}
 			resample(total_w);
+			estimate_pose();
+			pose_pub.publish(estimated_pose);
 		}
 		ros::spinOnce();
 		loop_rate.sleep();
@@ -323,13 +356,13 @@ void map_update_cspace(void)
       		enqueue(current_cell.i_f-1, current_cell.j_f,//i_f-1, j_f, i_o, j_o
           		current_cell.i_o, current_cell.j_o, Q, marked, cell_radius);
     	if(current_cell.j_f > 0)
-      		enqueue(current_cell.i_f, current_cell.j_f-1,//i, j-1, src_i, src_j 
+      		enqueue(current_cell.i_f, current_cell.j_f-1,//i_f, j_f-1, i_o, j_o
           		current_cell.i_o, current_cell.j_o, Q, marked, cell_radius);
     	if((int)current_cell.i_f < map.info.width - 1)
-      		enqueue(current_cell.i_f+1, current_cell.j_f,//i+1, j, src_i, src_j 
+      		enqueue(current_cell.i_f+1, current_cell.j_f,//i_f+1, j_f, i_o, j_o 
           		current_cell.i_o, current_cell.j_o, Q, marked, cell_radius);
    	 	if((int)current_cell.j_f < map.info.height - 1)
-      		enqueue(current_cell.i_f, current_cell.j_f+1,//i, j+1, src_i, src_j
+      		enqueue(current_cell.i_f, current_cell.j_f+1,//i_f, j_f+1, i_o, j_o
           		current_cell.i_o, current_cell.j_o, Q, marked, cell_radius);
 
 	Q.pop();//Qのtopの要素を消す
@@ -360,16 +393,16 @@ void Particle::init_set(void)
 
 }
 */
-void Particle::init_set(void)
+void Particle::init_set(double x, double y, double theta, double x_cov, double y_cov, double theta_cov)
 {	
-	double x,y;
+	double i,j;
 	do{
-		p_data.x = init_x + gaussian(init_x_cov);
-		p_data.y = init_y + gaussian(init_y_cov);
-		p_data.theta = init_theta + gaussian(init_theta_cov);
-		x = floor(p_data.x / map.info.resolution + 0.5);
-		y = floor(p_data.y / map.info.resolution + 0.5);
-	}while(map.data[map_index(x, y)] != 0);
+		p_data.x = x + gaussian(x_cov);
+		p_data.y = y + gaussian(y_cov);
+		p_data.theta = theta + gaussian(theta_cov);
+		i = floor(p_data.x / map.info.resolution + 0.5);
+		j = floor(p_data.y / map.info.resolution + 0.5);
+	}while(map.data[map_index(i, j)] != 0);
 }
 
 void Particle::move(Odom_data ndata)
@@ -462,14 +495,94 @@ void Particle::sense(void)
 }
 
 void resample(double total_w)
-{
+{	
+	std::vector<Particle> new_p_cloud;
+	new_p_cloud.resize(0);
+	double mw = 0.0;
+	double w_diff;
+	if(total_w > 0.0){
+		double w_avg = 0.0;
+		for(int i=0; i < N; i++){
+			w_avg += p_cloud[i].w;
+			p_cloud[i].w /= total_w;
+			mw = std::max(mw, p_cloud[i].w);
+		}
 
+		w_avg /= N;
+		if(w_slow == 0.0)
+			w_slow = w_avg;
+		else
+			w_slow += alpha_slow * (w_avg - w_slow);
+
+		if(w_fast == 0.0)
+			w_fast = w_avg;
+		else
+			w_fast += alpha_fast * (w_avg - w_fast);
+	}
+	else{
+		for(int i=0; i < N; i++){
+			p_cloud[i].w = 1.0 / double(N);
+		}
+	}
+
+	w_diff = 1.0 - (w_fast / w_slow);
+	if(w_diff < 0.0)
+		w_diff = 0.0;
+	
+	int index = drand48() * N;
+	int beta = 0;
+	while(new_p_cloud.size() < N){
+
+		if(drand48() < w_diff){
+			Particle p;
+			p.init_set(estimated_pose.pose.position.x, estimated_pose.pose.position.y, tf::getYaw(estimated_pose.pose.orientation), cov_x, cov_y, cov_theta);
+			new_p_cloud.push_back(p);
+		}
+		else{
+			beta +=	drand48() * 2.0 * mw;
+			while(beta > p_cloud[index].w){
+				beta -= p_cloud[index].w;
+				index = (index + 1) % N;
+			}
+			new_p_cloud.push_back(p_cloud[index]);
+		}
+	}
+	p_cloud = new_p_cloud;
 
 }
 
+void estimate_pose()
+{
+	cov_x = 0.0;
+	cov_y = 0.0;
+	cov_theta = 0.0;
+	double avg_x = 0.0;
+	double avg_y = 0.0;
+	double avg_theta = 0.0;
 
+	for(int i=0; i < N; i++){
+		avg_x += p_cloud[i].p_data.x;
+		avg_y += p_cloud[i].p_data.y;
+		avg_theta += p_cloud[i].p_data.theta;
+	}
+	avg_x /= N;
+	avg_y /= N;
+	avg_theta /= N;
+	
+	estimated_pose.pose.position.x = avg_x;
+	estimated_pose.pose.position.y = avg_y;
+	quaternionTFToMsg(tf::createQuaternionFromYaw(avg_theta), estimated_pose.pose.orientation);
 
+	for(int i=0; i < N; i++){
+		cov_x += pow( (p_cloud[i].p_data.x - avg_x), 2.0);
+		cov_y += pow( (p_cloud[i].p_data.y - avg_y), 2.0);
+		cov_theta += pow( (p_cloud[i].p_data.theta - avg_theta), 2.0);
+	}
+	cov_x = sqrt(cov_x / N);
+	cov_y = sqrt(cov_y / N);
+	cov_theta = sqrt(cov_theta / N);
 
+}
 
 
 
