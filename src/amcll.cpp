@@ -92,7 +92,7 @@ double z_rand;
 double sigma_hit;
 double laser_likelihood_max_dist;
 int range_count;
-const int N = 5000;
+int N;
 
 bool map_received = false;
 
@@ -104,15 +104,13 @@ void laserCallback(const sensor_msgs::LaserScanConstPtr& msg)
 	laser = *msg;
 	
 	range_count = laser.ranges.size();
-	double range_min;
-	double range_max;
-
-	range_min = std::max(laser.range_min, (float)MIN_RANGE);
-	range_max = std::min(laser.range_max, (float)MAX_RANGE);
-	laser.angle_increment = fmod(laser.angle_increment + 5*M_PI, 2*M_PI) - M_PI;
-	for(int i=0; i < range_count; i++){
-		if(laser.ranges[i] <= range_min){
-			laser.ranges[i] = range_max;
+	if(range_count){
+		laser.range_min = std::max(laser.range_min, (float)MIN_RANGE);
+		laser.range_max = std::min(laser.range_max, (float)MAX_RANGE);
+		for(int i=0; i < range_count; i++){
+			if(laser.ranges[i] <= laser.range_min){
+				laser.ranges[i] = laser.range_max;
+			}
 		}
 	}
 }
@@ -145,7 +143,8 @@ void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 	
 	ROS_INFO("Initializing likelihood field");
 	map_update_cspace();
-				
+	ROS_INFO("Set likelihood field");
+
 	map_received = true;
 
 }
@@ -175,6 +174,7 @@ int main(int argc, char** argv)
 	private_nh_.param("laser_likelihood_max_dist", laser_likelihood_max_dist, 2.0);
 	private_nh_.param("alpha_fast", alpha_fast, 0.1);
 	private_nh_.param("alpha_slow", alpha_slow, 0.001);
+	private_nh_.param("N", N, 1000);
 
 	srand((unsigned int)time(NULL));
 	range_count = 0;
@@ -191,6 +191,7 @@ int main(int argc, char** argv)
 	ros::Subscriber map_sub = nh_.subscribe("map", 10, mapCallback);
 	
 	tf::TransformListener listener;
+	tf::TransformBroadcaster map_br;
 	tf::StampedTransform latest_transform;
 	tf::StampedTransform previous_transform;
 	tf::Transform diff_transform;
@@ -200,8 +201,8 @@ int main(int argc, char** argv)
 	transform.setRotation(q);
 	transform.setOrigin(tf::Vector3(0, 0, 0));
 	previous_transform = tf::StampedTransform(transform, ros::Time::now(), "odom", "base_link");
+	
 	ros::Rate loop_rate(10.0);
-
 	while(ros::ok())
 	{   
 		if(map_received && range_count){
@@ -228,12 +229,45 @@ int main(int argc, char** argv)
 			double total_w = 0.0;
 			for(int i=0; i < N; i++){
 				p_cloud[i].move(odom);
+				ROS_INFO("move");
 				p_cloud[i].sense();
+				ROS_INFO("sense");
 				total_w += p_cloud[i].w; 
 			}
 			resample(total_w);
+			ROS_INFO("resampling");
 			estimate_pose();
+			estimated_pose.header.stamp = laser.header.stamp;
 			pose_pub.publish(estimated_pose);
+			ROS_INFO("published estimated_pose");
+			try{
+				tf::Transform map_to_base;
+				quaternionMsgToTF(estimated_pose.pose.orientation, q);
+				map_to_base.setRotation(q);
+				map_to_base.setOrigin(tf::Vector3(estimated_pose.pose.position.x, estimated_pose.pose.position.y, 0));
+				
+				geometry_msgs::PoseStamped base_to_map_;
+				geometry_msgs::PoseStamped odom_to_map_;
+
+				base_to_map_.header.frame_id ="base_link";
+				base_to_map_.header.stamp = laser.header.stamp;
+				poseTFToMsg(map_to_base.inverse(), base_to_map_.pose);
+				listener.transformPose("odom", base_to_map_, odom_to_map_);
+				
+				tf::Transform odom_to_map;
+				quaternionMsgToTF(odom_to_map_.pose.orientation, q);
+				odom_to_map.setRotation(q);
+				odom_to_map.setOrigin(tf::Vector3(odom_to_map_.pose.position.x, odom_to_map_.pose.position.y, 0));
+				
+				tf::StampedTransform map_to_odom = tf::StampedTransform(odom_to_map.inverse(), laser.header.stamp, "map", "odom");
+				
+				map_br.sendTransform(map_to_odom);
+			}
+			catch(tf::TransformException &ex){
+				ROS_ERROR("%s", ex.what());
+			}
+
+
 		}
 		ros::spinOnce();
 		loop_rate.sleep();
@@ -435,18 +469,7 @@ void Particle::move(Odom_data ndata)
 
 void Particle::sense(void)
 {
-	int range_count = laser.ranges.size();
-	double range_min;
-	double range_max;
 
-	range_min = std::max(laser.range_min, (float)MIN_RANGE);
-	range_max = std::min(laser.range_max, (float)MAX_RANGE);
-	laser.angle_increment = fmod(laser.angle_increment + 5*M_PI, 2*M_PI) - M_PI;
-	for(int i=0; i < range_count; i++){
-		if(laser.ranges[i] <= range_min){
-			laser.ranges[i] = range_max;
-		}
-	}
 	int step;
 	double z, pz;
 	double p;
@@ -468,7 +491,7 @@ void Particle::sense(void)
 		obs_range = laser.ranges[j];
 		obs_bearing = laser.angle_min + (laser.angle_increment * j);
 
-		if(obs_range >= range_max)
+		if(obs_range >= laser.range_max)
 			continue;
 		if(obs_range != obs_range)//check for NaN
 			continue;
