@@ -1,9 +1,9 @@
 <launch>
  	<arg name="map_file" default="$(find chibi19_a)/a19map2.yaml"/>
-  	<node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)">
+	<node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)"/>
 		<param name="frame_id" value="/map" />
 
-	<node pkg="chibi19_a" type="amcll" name="amcll" output="screen">
+		<node pkg="chibi19_a" type="amcll" name="amcll" output="screen"/>
 		<param name="N" value="1000"/>
 		<param name="alpha1" value="0.2"/>
 		<param name="alpha2" value="0.2"/>

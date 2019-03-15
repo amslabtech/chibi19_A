@@ -375,7 +375,7 @@ void enqueue(int i_f, int j_f, int i_o, int j_o, std::priority_queue<CellData>& 
 	cell.j_f = j_f;
 	cell.i_o = i_o;
 	cell.j_o = j_o;
-
+	cell.occ_dist = occ_dist;
 	Q.push(cell);
 
 	marked[map_index(i_f, j_f)] = 1;
