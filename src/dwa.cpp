@@ -19,10 +19,10 @@
 #define dv 0.01f
 #define dyaw 0.01f
 #define dt 0.1f
-#define predict_time 3.0f
+#define predict_time 1.5f
 #define to_goal_cost_gain 0.001f
-#define speed_cost_gain 1.50f
-#define ob_cost_gain 0.80f
+#define speed_cost_gain 1.00f
+#define ob_cost_gain 1.80f
 
 nav_msgs::Odometry roomba_odom;
 sensor_msgs::LaserScan roomba_scan;
@@ -151,8 +151,8 @@ float calc_speed_cost(std::vector<std::vector<float> >& traj)
 
 float calc_obstacle_cost(std::vector<std::vector<float> >& traj, std::vector<float> ob)
 {
-  int skip_i = 5;
-  int skip_j = 3;
+  int skip_i = 3;
+  int skip_j = 1;
   std::vector<float> local_origin = traj.front();
   //float local_origin_x = traj.front()[0];
   //float local_origin_y = traj.front()[1]; 
@@ -168,6 +168,8 @@ float calc_obstacle_cost(std::vector<std::vector<float> >& traj, std::vector<flo
 
   //ROS_INFO("traj.size() = %ld\n\n", traj.size());
   for(int i = 0; i < traj.size(); i += skip_i){
+	dist = 0.0f;
+
     local_x = traj[i][0] - local_origin[0];
       //ROS_INFO("local_x = %f\n", local_x);
     local_y = traj[i][1] - local_origin[1];
@@ -175,12 +177,14 @@ float calc_obstacle_cost(std::vector<std::vector<float> >& traj, std::vector<flo
     local_r = std::sqrt(local_x*local_x + local_y*local_y);
       //ROS_INFO("local_r = %f\n", dist);
 	if(!local_x){
-    	local_theta = std::atan2(local_y, local_x);
-	} else {
 		local_theta = 0.0f;
-	}//ROS_INFO("local_theta = %f\n", dist);
+	} else {
+    	local_theta = std::atan2(local_y, local_x);
+	}
     ob_theta = roomba_scan.angle_min;
-      //ROS_INFO("ob_theta = %f\n", dist);
+
+      ROS_INFO("local_theta = %f\n", local_theta);
+      //ROS_INFO("ob_theta = %f\n", ob_theta);
 	  //ROS_INFO("i = %d \n\n", i);
 
     for(int j = 0; j < ob.size(); j += skip_j){
@@ -191,7 +195,7 @@ float calc_obstacle_cost(std::vector<std::vector<float> >& traj, std::vector<flo
       dist = std::sqrt(local_r*local_r + ob[j]*ob[j] - \
           2*local_r*ob[j]*cos(local_theta - ob_theta));
  
-	  if(dist <= 1.6f*robot_radius){
+	  if(dist <= robot_radius){
 	//    ROS_INFO("\nj = %d \n", j);
 	//  ROS_INFO("local_r = %f\n", local_r);
 	//  ROS_INFO("ob[j] = %f\n", ob[j]);
@@ -213,9 +217,9 @@ float calc_obstacle_cost(std::vector<std::vector<float> >& traj, std::vector<flo
   return ob_cost_gain / min_dist;
 }
 
-void dwa_control(std::vector<float>& output_u, const std::vector<float>& x, const std::vector<float>& goal, const std::vector<float>& ob)
+bool dwa_control(std::vector<float>& output_u, const std::vector<float>& x, const std::vector<float>& goal, const std::vector<float>& ob)
 {
-  std::vector<float> dw(4);
+  std::vector<float> dw = {0.0f, 0.0f, 0.0f, 0.0f};
   std::vector<float> best_u = {0.0f, 0.0f};
   std::vector<std::vector<float> > traj;
   float min_cost = 10000.0f;
@@ -286,6 +290,8 @@ void dwa_control(std::vector<float>& output_u, const std::vector<float>& x, cons
   output_u[1] = best_u[1];
   ROS_INFO("v = %f\n", output_u[0]);
   ROS_INFO("y = %f\n", output_u[1]);
+
+  return true;
 }
 
 int is_goal(const std::vector<float>& x, const std::vector<float>& goal)
@@ -296,6 +302,8 @@ int is_goal(const std::vector<float>& x, const std::vector<float>& goal)
   float dist = std::sqrt(dx*dx + dy*dy);
 
   if(dist <= robot_radius){
+  	ROS_INFO("\n\nGoal!!!\n\n");
+	
     return 0;
   } else {
     return 11;
@@ -345,7 +353,7 @@ int main(int argc, char **argv)
   ros::Subscriber roomba_odom_sub = n.subscribe("roomba/odometry", 1,chatter_callback);
   ros::Subscriber roomba_scan_sub = n.subscribe("scan",1,scan_callback);
 
-  ros::Rate loop_rate(10);
+  ros::Rate loop_rate(5);
 
   ROS_INFO("start");
   
@@ -375,19 +383,21 @@ int main(int argc, char **argv)
     //ゴール判別
     roomba_mode = is_goal(x, goal);
 
-	std::vector<float> output_u(2);
+	std::vector<float> output_u = {0.0f, 0.0f};
   //ROS_INFO("%ld\n", roomba_scan.ranges.size());
-    dwa_control(output_u, x, goal, roomba_scan.ranges);
-
+    roomba_500driver_meiji::RoombaCtrl roomba_auto;
+    if(dwa_control(output_u, x, goal, roomba_scan.ranges)){
 //  ROS_INFO("dwa ok");
 //  ROS_INFO("output_u[0] = %f\n", output_u[0]);
 //  ROS_INFO("output_u[1] = %f\n", output_u[1]);
-    roomba_500driver_meiji::RoombaCtrl roomba_auto;
 
     roomba_auto.mode = roomba_mode;
     roomba_auto.cntl.linear.x = output_u[0];
     roomba_auto.cntl.angular.z = output_u[1];
-
+	} else {
+	  ROS_INFO("dwa not finish!!!");
+      roomba_auto.mode = 0;
+	}
     roomba_auto_pub.publish(roomba_auto);
 
 //    count++;
