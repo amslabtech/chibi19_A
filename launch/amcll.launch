@@ -1,0 +1,29 @@
+<launch>
+ 	<arg name="map_file" default="$(find chibi19_a)/a19map2.yaml"/>
+  	<node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)">
+		<param name="frame_id" value="/map" />
+
+	<node pkg="chibi19_a" type="amcll" name="amcll" output="screen">
+		<param name="N" value="1000"/>
+		<param name="alpha1" value="0.2"/>
+		<param name="alpha2" value="0.2"/>
+		<param name="alpha3" value="0.8"/>
+		<param name="alpha4" value="0.2"/>
+		<param name="z_hit" value="0.5"/>
+		<param name="z_rand" value="0.5"/>
+		<param name="sigma_hit" value="0.2"/>
+		<param name="laser_likelihood_max_dist" value="2.0"/>
+		<param name="alpha_slow" value="0.001"/>
+		<param name="alpha_fast" value="0.1"/>
+		<param name="max_beam" value="20"/>
+		<param name="MAX_RANGE" value="30"/>
+		<param name="MIN_RANGE" value="0.01"/>
+		<param name="init_x" value="0.0"/>
+		<param name="init_y" value="0.0"/>
+		<param name="init_theta" value="0.0"/>
+		<param name="init_x_cov" value="0.5:0.5"/>
+		<param name="init_y_cov" value="0.5*0.5"/>
+		<param name="init_theta_cov" value="M_PI/12 * M_PI/12"/>
+	</node>
+</launch>
+
