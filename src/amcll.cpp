@@ -2,6 +2,7 @@
 #include<sensor_msgs/LaserScan.h>
 #include<nav_msgs/OccupancyGrid.h>
 #include<geometry_msgs/PoseStamped.h>
+#include<geometry_msgs/PoseArray.h>
 #include<tf/transform_broadcaster.h>
 #include<tf/transform_listener.h>
 
@@ -51,6 +52,7 @@ private:
 };
 
 int map_index(int, int);
+int map_grid(int);
 bool map_valid(int, int);
 double normalize(double);
 double angle_diff(double, double);
@@ -63,6 +65,7 @@ void estimate_pose(void);
 nav_msgs::OccupancyGrid map;
 sensor_msgs::LaserScan laser;
 geometry_msgs::PoseStamped estimated_pose;
+geometry_msgs::PoseArray p_poses;
 double *occ_dist;
 
 double init_x;
@@ -139,6 +142,12 @@ void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 		Particle p;
 		p.init_set(init_x, init_y, init_theta, init_x_cov, init_y_cov, init_theta_cov);
 		p_cloud.push_back(p);
+		geometry_msgs::Pose tmp_pose;
+		tmp_pose.position.x = p.p_data.x;
+		tmp_pose.position.y = p.p_data.y;
+		tmp_pose.position.z = 0.0;
+		quaternionTFToMsg(tf::createQuaternionFromYaw(p.p_data.theta), tmp_pose.orientation);
+		p_poses.poses.push_back(tmp_pose);
 	}
 	
 	ROS_INFO("Initializing likelihood field");
@@ -181,12 +190,14 @@ int main(int argc, char** argv)
 	cov_x = init_x_cov;
 	cov_y = init_y_cov;
 	cov_theta = init_theta_cov;
+	p_poses.header.frame_id = "map";
 	estimated_pose.header.frame_id = "map";
 	estimated_pose.pose.position.x = init_x;
 	estimated_pose.pose.position.y = init_y;
 	estimated_pose.pose.position.z = 0.0;
 	quaternionTFToMsg(tf::createQuaternionFromYaw(init_theta), estimated_pose.pose.orientation);	
 	ros::Publisher pose_pub = nh_.advertise<geometry_msgs::PoseStamped>("amcl_pose", 10);
+	ros::Publisher poses_pub = nh_.advertise<geometry_msgs::PoseArray>("particle", 10);
 	ros::Subscriber laser_sub = nh_.subscribe("scan", 10, laserCallback);
 	ros::Subscriber map_sub = nh_.subscribe("map", 10, mapCallback);
 	
@@ -240,6 +251,16 @@ int main(int argc, char** argv)
 			estimated_pose.header.stamp = laser.header.stamp;
 			pose_pub.publish(estimated_pose);
 			ROS_INFO("published estimated_pose");
+
+			for(int i=0; i < N; i++){
+				geometry_msgs::Pose tmp_pose;
+				tmp_pose.position.x = p_cloud[i].p_data.x;
+				tmp_pose.position.y = p_cloud[i].p_data.y;
+				tmp_pose.position.z = 0.0;
+				quaternionTFToMsg(tf::createQuaternionFromYaw(p_cloud[i].p_data.theta), tmp_pose.orientation);
+				p_poses.poses[i] = tmp_pose;
+			}
+			poses_pub.publish(p_poses);
 			try{
 				tf::Transform map_to_base;
 				quaternionMsgToTF(estimated_pose.pose.orientation, q);
@@ -283,6 +304,10 @@ int map_index(int i, int j)
 	return i + (map.info.width * j);
 }
 
+int map_grid(int x)
+{
+	return floor((x - map.info.origin.position.x) / map.info.resolution + 0.5);
+}
 bool map_valid(int i, int j)
 {
 	return((i >= 0) && (i < map.info.width) && (j >= 0) && (j < map.info.height));
@@ -434,8 +459,8 @@ void Particle::init_set(double x, double y, double theta, double x_cov, double y
 		p_data.x = x + gaussian(x_cov);
 		p_data.y = y + gaussian(y_cov);
 		p_data.theta = theta + gaussian(theta_cov);
-		i = floor(p_data.x / map.info.resolution + 0.5);
-		j = floor(p_data.y / map.info.resolution + 0.5);
+		i = map_grid(p_data.x);
+		j = map_grid(p_data.y);
 	}while(map.data[map_index(i, j)] != 0);
 }
 
@@ -501,8 +526,8 @@ void Particle::sense(void)
 		hit.x = p_data.x + obs_range * cos(p_data.theta + obs_bearing);//laserの端点
 		hit.y = p_data.y + obs_range * sin(p_data.theta + obs_bearing);
 
-		int mi = floor(hit.x / map.info.resolution + 0.5);
-		int mj = floor(hit.y / map.info.resolution + 0.5);
+		int mi = map_grid(hit.x);
+		int mj = map_grid(hit.y);
 
 		if(!map_valid(mi, mj))//一番近い障害物までの距離を取得
 			z = laser_likelihood_max_dist;
