@@ -105,7 +105,6 @@ std::vector<std::pair<int, int>> free_indices;
 void laserCallback(const sensor_msgs::LaserScanConstPtr& msg)
 {
 	laser = *msg;
-	
 	range_count = laser.ranges.size();
 	if(range_count){
 		laser.range_min = std::max(laser.range_min, (float)MIN_RANGE);
@@ -224,7 +223,8 @@ int main(int argc, char** argv)
 				listener.lookupTransform("odom", "base_link",now,latest_transform);
 			}
 			catch(tf::TransformException &ex){
-				ROS_ERROR("%s", ex.what());
+				//ROS_ERROR("%s", ex.what());
+				ROS_INFO("1111111");
 			}
 			diff_transform = previous_transform.inverse() * latest_transform;
 			
@@ -240,9 +240,7 @@ int main(int argc, char** argv)
 			double total_w = 0.0;
 			for(int i=0; i < N; i++){
 				p_cloud[i].move(odom);
-				ROS_INFO("move");
 				p_cloud[i].sense();
-				ROS_INFO("sense");
 				total_w += p_cloud[i].w; 
 			}
 			resample(total_w);
@@ -285,7 +283,8 @@ int main(int argc, char** argv)
 				map_br.sendTransform(map_to_odom);
 			}
 			catch(tf::TransformException &ex){
-				ROS_ERROR("%s", ex.what());
+				//ROS_ERROR("%s", ex.what());
+				ROS_INFO("----");
 			}
 
 
@@ -358,13 +357,15 @@ bool operator<(const CellData& a, const CellData& b)//ソートの定義
 
 void enqueue(int i_f, int j_f, int i_o, int j_o, std::priority_queue<CellData>& Q, unsigned char* marked, int cell_radius)
 {
+
+
 	if(marked[map_index(i_f, j_f)])//同じセルかどうかチェック
 		return;
 
 	int di = abs(i_f - i_o);//freeのcellとoccupiedのcellの距離(x)
 	int dj = abs(j_f - j_o);//freeのcellとoccupiedのcellの距離(y)
 	double distance = sqrt(pow(di, 2.0) + pow(dj, 2.0));
-
+	
 	if(distance > cell_radius)
 		return;
 
@@ -376,10 +377,11 @@ void enqueue(int i_f, int j_f, int i_o, int j_o, std::priority_queue<CellData>& 
 	cell.i_o = i_o;
 	cell.j_o = j_o;
 	cell.occ_dist = occ_dist;
+
 	Q.push(cell);
 
 	marked[map_index(i_f, j_f)] = 1;
-
+	
 }
 
 void map_update_cspace(void)
@@ -389,6 +391,7 @@ void map_update_cspace(void)
 	marked = new unsigned char[map.info.width*map.info.height];
 	memset(marked, 0, sizeof(unsigned char) * map.info.width*map.info.height);//0で初期化
 	int cell_radius = laser_likelihood_max_dist / map.info.resolution;//半径
+	
 
 	CellData cell;
 	cell.occ_dist = occ_dist;
@@ -409,8 +412,10 @@ void map_update_cspace(void)
 			}
 		}
 	}
+	
 	while(!Q.empty()){//freeのcellのocc_distを計算する
 		CellData current_cell = Q.top();//Qのtopの要素にアクセスする
+
 		if(current_cell.i_f > 0)
       		enqueue(current_cell.i_f-1, current_cell.j_f,//i_f-1, j_f, i_o, j_o
           		current_cell.i_o, current_cell.j_o, Q, marked, cell_radius);
@@ -423,7 +428,7 @@ void map_update_cspace(void)
    	 	if((int)current_cell.j_f < map.info.height - 1)
       		enqueue(current_cell.i_f, current_cell.j_f+1,//i_f, j_f+1, i_o, j_o
           		current_cell.i_o, current_cell.j_o, Q, marked, cell_radius);
-
+	
 	Q.pop();//Qのtopの要素を消す
 	}
 
