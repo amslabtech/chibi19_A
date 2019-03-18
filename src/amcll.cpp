@@ -102,7 +102,6 @@ double laser_likelihood_max_dist;
 int range_count = 0.0;
 
 bool map_received = false;
-bool update_resumpling = false;
 
 
 std::vector<Particle> p_cloud;
