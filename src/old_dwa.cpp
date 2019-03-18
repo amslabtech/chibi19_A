@@ -27,26 +27,22 @@
 nav_msgs::Odometry roomba_odom;
 sensor_msgs::LaserScan roomba_scan;
 
-struct Speed{
+struct Output{
   double v;
-  double omega;
-};
-
-struct Status{
-  double x;
   double y;
-  double yaw;
-  double v;
-  double omega;
 };
 
-void angle_range(double& theta)
+double angle_range(const double& t)
 {
+  double theta = t;
+
   if(theta > M_PI){
     theta -= 2*M_PI;
   } else if(t < -M_PI){
     theta += 2*M_PI;
   }
+
+  return theta;
 }
 
 double atan(const double& x, const double& y)
@@ -63,23 +59,23 @@ double atan(const double& x, const double& y)
     }
   } else {
     theta = std::atan2(y, x);
-    angle_range(theta);
+    theta = angle_range(theta);
   }
 
   return theta;
 }
-void motion(Status& r, const Speed& u)
+void motion(std::vector<double>& x, const std::vector<double>& u)
 {
-  roomba.yaw += u.omega * dt;
-  angle_range(roomba.yaw);
+  x[2] += u[1] * dt;
+  x[2] = angle_range(x[2])
 
-  roomba.x += u.v * std::cos(roomba.yaw) * dt;
-  roomba.y += u.v * std::sin(roomba.yaw) * dt;
-  roomba.v = u.v;
-  x.omega = u.omega;
+  x[0] += u[0] * cos(x[2]) * dt;
+  x[1] += u[0] * sin(x[2]) * dt;
+  x[3] = u[0];
+  x[4] = u[1];
 }
 
-void calc_dynamic_window(std::vector<double>& dw, const Status& roomba)
+void calc_dynamic_window(std::vector<double>& dw, const std::vector<double>& x)
 {
   //ROS_INFO("calc_dynamic_window in\n");
   std::vector<double> Vs= {
@@ -88,12 +84,16 @@ void calc_dynamic_window(std::vector<double>& dw, const Status& roomba)
     -max_yawrate,
      max_yawrate
   };
+  //ROS_INFO("calc_dynamic_window Vs[0] = %lf\n", Vs[0]);
+  //ROS_INFO("calc_dynamic_window Vs[1] = %lf\n", Vs[1]);
+  //ROS_INFO("calc_dynamic_window Vs[2] = %lf\n", Vs[2]);
+  //ROS_INFO("calc_dynamic_window Vs[3] = %lf\n", Vs[3]);
 
   std::vector<double> Vd = {
-    roomba.v - max_accel * dt,
-    roomba.v + max_accel * dt,
-    roomba.omega - max_dyawrate * dt,
-    roomba.omega + max_dyawrate * dt
+    x[3] - max_accel * dt,
+    x[3] + max_accel * dt,
+    x[4] - max_dyawrate * dt,
+    x[4] + max_dyawrate * dt
   };
   //ROS_INFO("calc_dynamic_window Vd[0] = %lf\n", Vd[0]);
   //ROS_INFO("calc_dynamic_window Vd[1] = %lf\n", Vd[1]);
@@ -110,65 +110,88 @@ void calc_dynamic_window(std::vector<double>& dw, const Status& roomba)
   //ROS_INFO("calc_dynamic_window dw[3] = %lf\n", dw[3]);
 }
 
-void calc_trajectory(std::vector<Status>& traj, const double v, const double y)
+void calc_trajectory(std::vector<std::vector<double> >& traj, const double v, const double y)
 {
   //ROS_INFO("calc_trajectory v = %lf\n", v);
   //ROS_INFO("calc_trajectory y = %lf\n", y);
-  Speed u = {v, y};
+  std::vector<double> u = {v, y};
 
-  Status roomba = {0.0, 0.0, 0.0, 0.0, 0.0};
+  std::vector<double> x = {0.0, 0.0, 0.0, 0.0, 0.0};
+  //ROS_INFO("calc_trajectory x[0] = %lf\n", x[0]);
+  //ROS_INFO("calc_trajectory x[1] = %lf\n", x[1]);
+  //ROS_INFO("calc_trajectory x[2] = %lf\n", x[2]);
+  //ROS_INFO("calc_trajectory x[3] = %lf\n", x[3]);
+  //ROS_INFO("calc_trajectory x[4] = %lf\n", x[4]);
 
   traj.erase(traj.begin(), traj.end());
   for(double t = 0; t <= predict_time; t += dt){
-    traj.push_back(roomba);
+    traj.push_back(x);
     //ROS_INFO("calc_trajectory    t = %lf\n", t);
     //ROS_INFO("calc_trajectory x[0] = %lf\n", x[0]);
     //ROS_INFO("calc_trajectory x[1] = %lf\n", x[1]);
     //ROS_INFO("calc_trajectory x[2] = %lf\n", x[2]);
     //ROS_INFO("calc_trajectory x[3] = %lf\n", x[3]);
     //ROS_INFO("calc_trajectory x[4] = %lf\n", x[4]);
-    motion(roomba, u);
+    motion(x, u);
   }
-  traj.push_back(roomba);
+  traj.push_back(x);
+  //ROS_INFO("calc_trajectory traj.back()[0] = %lf\n", traj.back()[0]);
+  //ROS_INFO("calc_trajectory traj.size() = %ld\n", traj.size());
+  //ROS_INFO("calc_trajectory traj.back()[0] = %lf\n", traj.back()[0]);
+  //ROS_INFO("calc_trajectory traj.back()[1] = %lf\n", traj.back()[1]);
+  //ROS_INFO("calc_trajectory traj.back()[2] = %lf\n", traj.back()[2]);
+  //ROS_INFO("calc_trajectory traj.back()[3] = %lf\n", traj.back()[3]);
+  //ROS_INFO("calc_trajectory traj.back()[4] = %lf\n", traj.back()[4]);
 }
 
 //書き換えが必要
-double calc_to_goal_cost(const std::vector<Status>& traj, const Status& roomba, const Status& goal)
+double calc_to_goal_cost(const std::vector<std::vector<double> >& traj, const std::vector<double>& x, const std::vector<double>& goal)
 {
   //ROS_INFO("calc_to_goal_cost in\n");
-  Status last = traj.back();
-  double l_r = std::sqrt(last.x*last.x + last.y*last.y);
-  double l_theta = atan(last.y, last.x);
-  double x = roomba.x + l_r*std::cos(roomba.yaw + l_theta);
-  double y = roomba.y + l_r*std::sin(roomba.yaw + l_theta);
-  double dx = goal.x - x;
-  double dy = goal.y - y;
+  //ROS_INFO("calc_to_goal_cost %ld\n", traj.size());
+  std::vector<double> p = traj.back();
+  //ROS_INFO("calc_to_goal_cost p[0] = %lf\n", p[0]);
+  //ROS_INFO("calc_to_goal_cost p[1] = %lf\n", p[1]);
+  //ROS_INFO("calc_to_goal_cost p[2] = %lf\n", p[2]);
+  //ROS_INFO("calc_to_goal_cost p[3] = %lf\n", p[3]);
+  //ROS_INFO("calc_to_goal_cost p[4] = %lf\n\n", p[4]);
+  double dx = goal[0] - p[0];
+  double dy = goal[1] - p[1];
+  double r = std::sqrt(p[0]*p[0] + p[1]*p[1]);
+  double theta = atan(p[1], p[0]);
+  double Dx = x[0] + r*std::cos(theta + p[3]);
+  double Dy = x[1] + r*std::sin(theta + p[3]);
   double to_goal_angle = 0.0;
   double error_angle = 0.0;
   double error_dis = 0.0;
 
   to_goal_angle = atan(dx, dy);
-  error_angle = std::abs(to_goal_angle - last.yaw);
 
-  error_dis = std::sqrt(dx*dx + dy*dy);
+  error_angle = std::abs(to_goal_angle - p[2]);
+  error_dis = std::sqrt(Dx*Dx + Dy*Dy);
   //ROS_INFO("calc_to_goal_cost error_angle = %lf\n\n", error_angle);
 
   return to_goal_cost_gain * error_angle + dis_goal_cost_gain * error_dis;
 }
 
-double calc_speed_cost(const std::vector<Status>& traj)
+double calc_speed_cost(const std::vector<std::vector<double> >& traj)
 {
-  Status last = traj.back();
-  double error_speed = max_speed - last.v;
+  std::vector<double> p = traj.back();
+  //ROS_INFO("calc_speed_cost p[0] = %lf\n", p[0]);
+  //ROS_INFO("calc_speed_cost p[1] = %lf\n", p[1]);
+  //ROS_INFO("calc_speed_cost p[2] = %lf\n", p[2]);
+  //ROS_INFO("calc_speed_cost p[3] = %lf\n", p[3]);
+  //ROS_INFO("calc_speed_cost p[4] = %lf\n", p[4]);
+  double error_speed = max_speed - p[3];
 
   return speed_cost_gain * error_speed;
 }
 
-double calc_obstacle_cost(const std::vector<Status>& traj, const std::vector<float> ob)
+double calc_obstacle_cost(const std::vector<std::vector<double> >& traj, const std::vector<float> ob)
 {
-  //x,y,r,theta,obはlocal
   int skip_i = 1;
   int skip_j = 10;
+  //std::vector<double> local_origin = traj.front();
   double x = 0.0;
   double y = 0.0;
   double xx = 0.0;
@@ -179,7 +202,7 @@ double calc_obstacle_cost(const std::vector<Status>& traj, const std::vector<flo
   double rr = 0.0;
   double obob = 0.0;
   double rob = 0.0;
-  double c = 0.0;
+  double cos = 0.0;
   double dist = 0.0;
   double min_dist = std::numeric_limits<double>::infinity();
   double left_rod_max = 1.60;
@@ -190,9 +213,10 @@ double calc_obstacle_cost(const std::vector<Status>& traj, const std::vector<flo
   //ROS_INFO("\nstart calc ob_cost\n\n");
   //ROS_INFO("local_origin[0] = %lf\n", local_origin[0]);
   //ROS_INFO("local_origin[1] = %lf\n", local_origin[1]);
+  //ROS_INFO("\ntraj.size() = %ld\n\n", traj.size());問題ない
   for(int i = 0; i < traj.size(); i += skip_i){
-    x = traj[i].x;
-    y = traj[i].y;
+    x = traj[i][0];
+    y = traj[i][1];
   	xx = x*x;
   	yy = y*y;
     r = std::sqrt(xx+yy);
@@ -203,22 +227,23 @@ double calc_obstacle_cost(const std::vector<Status>& traj, const std::vector<flo
     loaca_theta = atan(x, y);
 
     ob_theta = roomba_scan.angle_min;
+    //ROS_INFO("ob.size() = %ld\n", ob.size());合ってた
     //ROS_INFO("ob_theta = %lf\n", ob_theta);
     //ROS_INFO("i = %d \n\n", i);
 
     for(int j = 0; j < ob.size(); j += skip_j){
-  	  if(( left_rod_min < ob_theta && ob_theta < left_rod_max) ||
-  	     ( right_rod_min < ob_theta && ob_theta < right_rod_max)){
-          ob_theta += skip_j * roomba_scan.angle_increment;
-          continue;
-  	  }
+	  if(( left_rod_min < ob_theta && ob_theta < left_rod_max) ||
+	     ( right_rod_min < ob_theta && ob_theta < right_rod_max)){
+        ob_theta += skip_j * roomba_scan.angle_increment;
+        continue;
+	  }
 
-      if(ob[j] > 60.0){
-        ob[j] = 60.0;
-      }
+    if(ob[j] > 60.0){
+      ob[j] = 60.0;
+    }
 
       /*if(ob[j] <= 3.0 * robot_radius){
-  		  ROS_INFO("\nob_theta = %lf \n\n", ob_theta);
+		ROS_INFO("\nob_theta = %lf \n\n", ob_theta);
       }*/
 
       //if(ob[j] > 60.0){
@@ -238,11 +263,12 @@ double calc_obstacle_cost(const std::vector<Status>& traj, const std::vector<flo
       //ROS_INFO("y[1] = %lf\n", traj[i][1]);
 
       //極座標での２点間の距離を調べる
-  	  rr = r*r;
-  	  obob = ob[j]*ob[j];
-  	  rob = 2*r*ob[j];
-  	  c = std::cos(theta - ob_theta);
-  	  dist = std::sqrt(rr + obob - rob*c);
+	  //r が計算されていない?
+	  rr = r*r;
+	  obob = ob[j]*ob[j];
+	  rob = 2*r*ob[j];
+	  cos = std::cos(theta - ob_theta);
+	  dist = std::sqrt(rr + obob - rob * cos);
       //printf("\nrr = %lf\n", rr);
       //printf("\nobob = %lf\n", obob);
       //printf("\nrob = %lf\n", rob);
@@ -273,25 +299,44 @@ double calc_obstacle_cost(const std::vector<Status>& traj, const std::vector<flo
   return ob_cost_gain / min_dist;
 }
 
-Speed dwa_control(const Status& roomba, const Status& goal, const std::vector<float> ob)
+Output dwa_control(const std::vector<double>& x, const std::vector<double>& goal, const std::vector<float> ob)
 {
   //ROS_INFO("\n----------------------dw start----------------------\n");
-  Speed best_output = {0.0, 0.0};
+  Output best_output = {0.0, 0.0};
+  // double best_v = 0.0;
+  // double best_y = 0.0;
   double ob_cost = 0.0;
   double min_cost = 1000.0;
   double final_cost = 0.0;
   double speed_cost = 0.0;
   double to_goal_cost = 0.0;
   std::vector<double> dw = {0.0, 0.0, 0.0, 0.0};
-  std::vector<Status> traj;
+  std::vector<std::vector<double> > traj;
 
-  calc_dynamic_window(dw, roomba);
+  calc_dynamic_window(dw, x);
+  //ROS_INFO("dwa dw[0] = %lf\n", dw[0]);
+  //ROS_INFO("dwa dw[1] = %lf\n", dw[1]);
+  //ROS_INFO("dwa dw[2] = %lf\n", dw[2]);
+  //ROS_INFO("dwa dw[3] = %lf\n", dw[3]);
+  //ROS_INFO("%ld\n", roomba_scan.ranges.size());
   for(double v = dw[0]; v <= dw[1]; v += dv){
     for(double y = dw[2]; y <= dw[3]; y += dyaw){
       ROS_INFO("\n--------------------------------------------------------------------------------------------\nv = %lf\ny = %lf\n", v, y);
+      //ROS_INFO("dw[0] = %lf\n", dw[0]);
+      //ROS_INFO("dw[1] = %lf\n", dw[1]);
+      //ROS_INFO("dw[2] = %lf\n", dw[2]);
+      //ROS_INFO("dw[3] = %lf\n", dw[3]);
+      //calc_trajectory(traj, x, v, y);
       calc_trajectory(traj, v, y);
+      //ROS_INFO("dwa_control traj.back()[0] = %lf\n", traj.back()[0]);
+      //ROS_INFO("dwa_control traj.back()[1] = %lf\n", traj.back()[1]);
+      //ROS_INFO("dwa_control traj.back()[2] = %lf\n", traj.back()[2]);
+      //ROS_INFO("dwa_control traj.back()[3] = %lf\n", traj.back()[3]);
+      //ROS_INFO("dwa_control traj.back()[4] = %lf\n", traj.back()[4]);
+      //ROS_INFO("dwa traj.size() = %ld\n", traj.size());
+      //ROS_INFO("calc_trajectory ok\n");
 
-      to_goal_cost = calc_to_goal_cost(traj, roomba, goal);
+      to_goal_cost = calc_to_goal_cost(traj, x, goal);
       speed_cost = calc_speed_cost(traj);
       ob_cost = calc_obstacle_cost(traj, ob);
 
@@ -314,7 +359,8 @@ Speed dwa_control(const Status& roomba, const Status& goal, const std::vector<fl
         //ROS_INFO("min_cost = %lf\n", min_cost);
         //ROS_INFO("to_goal_cost = %lf\n", to_goal_cost);
         //ROS_INFO("speed_cost = %lf\n", speed_cost);
-        //ROS_INFO("ob_cost = %lf\n\n------------------------------------------------\n\n", ob_cost);
+        //ROS_INFO("ob_cost = %lf\n\n", ob_cost);
+        //ROS_INFO("\n------------------------------------------------\n\n");
       }
     }
   }
@@ -323,6 +369,8 @@ Speed dwa_control(const Status& roomba, const Status& goal, const std::vector<fl
   	best_output.v = -0.2;
   	best_output.y = 0.0;
   }
+  // output_u[0] = best_v;
+  // output_u[1] = best_y;
   //ROS_INFO("\n----------------------dw finish----------------------\n");
   //ROS_INFO("\nv = %lf\n", output_u[0]);
   //ROS_INFO("\ny = %lf\n", output_u[1]);
@@ -330,22 +378,23 @@ Speed dwa_control(const Status& roomba, const Status& goal, const std::vector<fl
   return best_output;
 }
 
-int is_goal(const Status& roomba, const Status& goal)
+int is_goal(const std::vector<double>& x, const std::vector<double>& goal)
 {
-  double dx = goal.x - roomba.x;
-  double dy = goal.y - roomba.y;
+  double dx = goal[0] - x[0];
+  double dy = goal[1] - x[1];
 
   double dist = std::sqrt(dx*dx + dy*dy);
 
   if(dist <= robot_radius){
     ROS_INFO("\n\nGoal!!!\n\n");
+
     return 0;
   } else {
     return 11;
   }
 }
 
-bool is_normalized()
+int is_normalized()
 {
   double square_sum = roomba_odom.pose.pose.orientation.x *\
                       roomba_odom.pose.pose.orientation.x +\
@@ -377,9 +426,10 @@ int main(int argc, char **argv)
 {
   int roomba_mode = 11;
 
-  Speed output = {0.0, 0.0};
-  Status goal = {1.0, 10.0, 0.0, 0.0, 0.0};
-  Status roomba = {0.0, 0.0, 0.0, 0.0, 0.0};
+  std::vector<double> x = {0.0, 0.0, 0.0, 0.0, 0.0};
+  std::vector<double> goal = {1.0, 10.0};
+  // std::vector<double> output_u = {0.0, 0.0};
+  Output output = {0.0, 0.0};
 
   roomba_500driver_meiji::RoombaCtrl roomba_auto;
 
@@ -396,27 +446,49 @@ int main(int argc, char **argv)
 
   while (ros::ok())
   {
+    //ROS_INFO("roop_count = %d\n", count);
     ros::spinOnce();
 
     if(!roomba_scan.ranges.size() || !is_normalized()){
       continue;
     }
 
-    roomba.x = roomba_odom.pose.pose.position.x;
-    roomba.y = roomba_odom.pose.pose.position.y;
-    roomba.yaw = tf::getYaw(roomba_odom.pose.pose.orientation);
-    roomba.v = max_speed * roomba_odom.twist.twist.linear.x;
-    roomba.omega = max_yawrate * roomba_odom.twist.twist.angular.z;
+    x = {
+      roomba_odom.pose.pose.position.x,
+      roomba_odom.pose.pose.position.y,
+      tf::getYaw(roomba_odom.pose.pose.orientation),
+      max_speed * roomba_odom.twist.twist.linear.x,
+      max_yawrate * roomba_odom.twist.twist.angular.z
+    };
+    output_u = {0.0, 0.0};
+  	dw = {0.0, 0.0, 0.0, 0.0};
+      //ROS_INFO("x[0] = %lf\n", x[0]);
+      //ROS_INFO("x[1] = %lf\n", x[1]);
+      //ROS_INFO("x[2] = %lf\n", x[2]);
+      //ROS_INFO("x[3] = %lf\n", x[3]);
+      //ROS_INFO("x[4] = %lf\n", x[4]);
 
     //ゴール判別
-    roomba_mode = is_goal(roomba, goal);
+    roomba_mode = is_goal(x, goal);
 
-    output = dwa_control(roomba, goal, roomba_scan.ranges);
+    output = dwa_control(x, goal, roomba_scan.ranges);
 
     roomba_auto.mode = roomba_mode;
     roomba_auto.cntl.linear.x = output.v / max_speed;
     roomba_auto.cntl.angular.z = output.y / max_yawrate;
-
+    /*
+    if(dwa_control(output_u, x, goal, roomba_scan.ranges)){
+      //ROS_INFO("dwa ok");
+      //ROS_INFO("output_u[0] = %lf\n", output_u[0]);
+      //ROS_INFO("output_u[1] = %lf\n", output_u[1]);
+      roomba_auto.mode = roomba_mode;
+      roomba_auto.cntl.linear.x = output_u[0] / max_speed;
+      roomba_auto.cntl.angular.z = output_u[1] / max_yawrate;
+    } else {
+      //ROS_INFO("\n---------------dwa not finish!!!----------------\n");
+      roomba_auto.mode = 0;
+    }
+    */
     roomba_auto_pub.publish(roomba_auto);
 
     loop_rate.sleep();
