@@ -44,7 +44,7 @@ void angle_range(double& theta)
 {
   if(theta > M_PI){
     theta -= 2*M_PI;
-  } else if(t < -M_PI){
+  } else if(theta < -M_PI){
     theta += 2*M_PI;
   }
 }
@@ -68,7 +68,8 @@ double atan(const double& x, const double& y)
 
   return theta;
 }
-void motion(Status& r, const Speed& u)
+
+void motion(Status& roomba, const Speed& u)
 {
   roomba.yaw += u.omega * dt;
   angle_range(roomba.yaw);
@@ -76,7 +77,7 @@ void motion(Status& r, const Speed& u)
   roomba.x += u.v * std::cos(roomba.yaw) * dt;
   roomba.y += u.v * std::sin(roomba.yaw) * dt;
   roomba.v = u.v;
-  x.omega = u.omega;
+  roomba.omega = u.omega;
 }
 
 void calc_dynamic_window(std::vector<double>& dw, const Status& roomba)
@@ -200,7 +201,7 @@ double calc_obstacle_cost(const std::vector<Status>& traj, const std::vector<flo
     //ROS_INFO("out of for y[1] = %lf\n", traj[i][1]);
     //ROS_INFO("out of for r = %lf\n------------------------------------------------------\n", r);
 
-    loaca_theta = atan(x, y);
+    theta = atan(x, y);
 
     ob_theta = roomba_scan.angle_min;
     //ROS_INFO("ob_theta = %lf\n", ob_theta);
@@ -208,14 +209,11 @@ double calc_obstacle_cost(const std::vector<Status>& traj, const std::vector<flo
 
     for(int j = 0; j < ob.size(); j += skip_j){
   	  if(( left_rod_min < ob_theta && ob_theta < left_rod_max) ||
-  	     ( right_rod_min < ob_theta && ob_theta < right_rod_max)){
+  	     ( right_rod_min < ob_theta && ob_theta < right_rod_max) ||
+           ob[j] > 60.0){
           ob_theta += skip_j * roomba_scan.angle_increment;
           continue;
   	  }
-
-      if(ob[j] > 60.0){
-        ob[j] = 60.0;
-      }
 
       /*if(ob[j] <= 3.0 * robot_radius){
   		  ROS_INFO("\nob_theta = %lf \n\n", ob_theta);
@@ -306,7 +304,7 @@ Speed dwa_control(const Status& roomba, const Status& goal, const std::vector<fl
       if(min_cost > final_cost){
         min_cost = final_cost;
         best_output.v = v;
-        best_output.y = y;
+        best_output.omega = y;
         //ROS_INFO("\n----------------mincost change!!!--------------\n\n");
         //ROS_INFO("v = %lf\n", v);
         //ROS_INFO("mincost change v = %lf\n", best_u[0]);
@@ -321,7 +319,7 @@ Speed dwa_control(const Status& roomba, const Status& goal, const std::vector<fl
 
   if(min_cost > 999.0){
   	best_output.v = -0.2;
-  	best_output.y = 0.0;
+  	best_output.omega = 0.0;
   }
   //ROS_INFO("\n----------------------dw finish----------------------\n");
   //ROS_INFO("\nv = %lf\n", output_u[0]);
@@ -415,7 +413,7 @@ int main(int argc, char **argv)
 
     roomba_auto.mode = roomba_mode;
     roomba_auto.cntl.linear.x = output.v / max_speed;
-    roomba_auto.cntl.angular.z = output.y / max_yawrate;
+    roomba_auto.cntl.angular.z = output.omega / max_yawrate;
 
     roomba_auto_pub.publish(roomba_auto);
 
