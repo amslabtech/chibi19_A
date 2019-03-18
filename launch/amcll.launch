@@ -7,22 +7,24 @@
 		<param name="N" value="500"/>
 		<param name="alpha1" value="0.2"/>
 		<param name="alpha2" value="0.2"/>
-		<param name="alpha3" value="0.2"/>
-		<param name="alpha4" value="0.2"/>
+		<param name="alpha3" value="0.15"/>
+		<param name="alpha4" value="0.15"/>
 		<param name="z_hit" value="0.95"/>
 		<param name="z_rand" value="0.05"/>
 		<param name="sigma_hit" value="0.2"/>
 		<param name="laser_likelihood_max_dist" value="2.0"/>
 		<param name="alpha_slow" value="0.001"/>
 		<param name="alpha_fast" value="0.1"/>
-		<param name="max_beam" value="20"/>
+		<param name="max_beam" value="10"/>
 		<param name="MAX_RANGE" value="30"/>
 		<param name="MIN_RANGE" value="0.01"/>
 		<param name="init_x" value="0.0"/>
 		<param name="init_y" value="0.0"/>
 		<param name="init_theta" value="0.0"/>
-		<param name="init_x_cov" value="0.5:0.5"/>
-		<param name="init_y_cov" value="0.5*0.5"/>
-		<param name="init_theta_cov" value="M_PI/12 * M_PI/12"/>
+		<param name="init_x_cov" value="10.0"/>
+		<param name="init_y_cov" value="10.0"/>
+		<param name="init_theta_cov" value="10.0"/>
+		<param name="motion_update" value="1.0"/>
+		<param name="angle_update" value="1.0"/>
 </launch>
 

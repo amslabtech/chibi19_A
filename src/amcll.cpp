@@ -68,6 +68,7 @@ geometry_msgs::PoseStamped estimated_pose;
 geometry_msgs::PoseArray p_poses;
 double *occ_dist;
 
+int N;
 double init_x;
 double init_y;
 double init_theta;
@@ -79,8 +80,12 @@ double cov_y;
 double cov_theta;
 double alpha_slow;
 double alpha_fast;
-double w_slow;
-double w_fast;
+double motion_update;
+double angle_update;
+double motion = 0.0;
+double angle = 0.0;
+double w_slow = 0.0;
+double w_fast = 0.0;
 
 double alpha1;
 double alpha2;
@@ -94,16 +99,18 @@ double z_hit;
 double z_rand;
 double sigma_hit;
 double laser_likelihood_max_dist;
-int range_count;
-int N;
+int range_count = 0.0;
 
 bool map_received = false;
+bool update_resumpling = false;
+
 
 std::vector<Particle> p_cloud;
 std::vector<std::pair<int, int>> free_indices;
 
 void laserCallback(const sensor_msgs::LaserScanConstPtr& msg)
 {
+	ROS_INFO("laser received");
 	laser = *msg;
 	range_count = laser.ranges.size();
 	if(range_count){
@@ -183,9 +190,10 @@ int main(int argc, char** argv)
 	private_nh_.param("alpha_fast", alpha_fast, 0.1);
 	private_nh_.param("alpha_slow", alpha_slow, 0.001);
 	private_nh_.param("N", N, 1000);
+	private_nh_.param("motion_update", motion_update, 1.0);
+	private_nh_.param("angle_update", angle_update, 1.0);
 
 	srand((unsigned int)time(NULL));
-	range_count = 0;
 	cov_x = init_x_cov;
 	cov_y = init_y_cov;
 	cov_theta = init_theta_cov;
@@ -204,7 +212,6 @@ int main(int argc, char** argv)
 	tf::TransformBroadcaster map_br;
 	tf::StampedTransform latest_transform;
 	tf::StampedTransform previous_transform;
-	tf::Transform diff_transform;
 	tf::Quaternion q;
 	tf::Transform transform;
 	q.setRPY(0.0, 0.0, 0.0);
@@ -226,25 +233,35 @@ int main(int argc, char** argv)
 				//ROS_ERROR("%s", ex.what());
 				ROS_INFO("1111111");
 			}
-			diff_transform = previous_transform.inverse() * latest_transform;
-			
 			odom.pose.x = latest_transform.getOrigin().x();
 			odom.pose.y = latest_transform.getOrigin().y();
 			odom.pose.theta = tf::getYaw(latest_transform.getRotation());
-			odom.delta.x = diff_transform.getOrigin().x();
-			odom.delta.y= diff_transform.getOrigin().y();
-			odom.delta.theta = tf::getYaw(diff_transform.getRotation()); 
-	
+			odom.delta.x = latest_transform.getOrigin().x() - previous_transform.getOrigin().x();
+			odom.delta.y= latest_transform.getOrigin().y() - previous_transform.getOrigin().y();
+			odom.delta.theta = tf::getYaw(latest_transform.getRotation()) - tf::getYaw(previous_transform.getRotation());
+
+			motion += sqrt(pow(odom.delta.x, 2.0) + pow(odom.delta.y, 2.0));
+			angle += fabs(odom.delta.theta);
+
 			previous_transform = latest_transform;
-			
+			ROS_INFO("x: %f, y: %f, theta: %f", odom.delta.x, odom.delta.y, odom.delta.theta);
 			double total_w = 0.0;
 			for(int i=0; i < N; i++){
 				p_cloud[i].move(odom);
 				p_cloud[i].sense();
+				//ROS_INFO("w = %f", p_cloud[i].w);
 				total_w += p_cloud[i].w; 
 			}
-			resample(total_w);
-			ROS_INFO("resampling");
+			if(motion > motion_update){
+				resample(total_w);
+				ROS_INFO("resampling");
+				motion = 0.0;
+			}
+			if(angle > angle_update){
+				resample(total_w);
+				ROS_INFO("resampling");
+				angle = 0.0;
+			}
 			estimate_pose();
 			estimated_pose.header.stamp = laser.header.stamp;
 			pose_pub.publish(estimated_pose);
@@ -504,7 +521,6 @@ void Particle::sense(void)
 	double z, pz;
 	double p;
 	double obs_range, obs_bearing;
-	double total_weight = 0.0;
 	pose_vector hit;
 
 	p = 1.0;
@@ -538,7 +554,8 @@ void Particle::sense(void)
 			z = laser_likelihood_max_dist;
 		else
 			z = occ_dist[map_index(mi, mj)];
-
+		
+		//ROS_INFO("z = %f", z);
 		pz += z_hit * exp(-(z * z) / z_hit_demon);
 		pz += z_rand * z_rand_mult;
 
@@ -588,7 +605,7 @@ void resample(double total_w)
 
 		if(drand48() < w_diff){
 			Particle p;
-			p.init_set(estimated_pose.pose.position.x, estimated_pose.pose.position.y, tf::getYaw(estimated_pose.pose.orientation), cov_x, cov_y, cov_theta);
+			p.init_set(estimated_pose.pose.position.x, estimated_pose.pose.position.y, tf::getYaw(estimated_pose.pose.orientation), init_x_cov, init_y_cov, init_theta_cov);
 			new_p_cloud.push_back(p);
 		}
 		else{
