@@ -1,5 +1,5 @@
 <launch>
-  <arg name="map_file" default="$(find chibi19_a)/DMapData.yaml"/>
+	<arg name="map_file" default="$(find chibi19_a)/map_data/a19map2.yaml"/>
   <node pkg="map_server" name="map_server" type="map_server" args="$(arg map_file)" output="screen"/>
 
   <arg name="use_map_topic" default="true"/>
