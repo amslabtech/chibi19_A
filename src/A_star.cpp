@@ -1,21 +1,21 @@
 #include<stdio.h>
-#include<stdlib.h>
-#include<array>
-#include<algorithm>
-#include<iostream>
+//#include<stdlib.h>
+//#include<array>
+//#include<algorithm>
+//#include<iostream>
 
-//ã‚ã¨ã§å…¥åŠ›å€¤ã‚’ä»£å…¥ã™ã‚‹ã‚ˆã†ã«å¤‰ãˆã‚‹
-const int w_x = 6;//worldç¸¦
-const int w_y = 6;//worldæ¨ª
-const int init_x = 0;//åˆæœŸä½ç½®x
-const int init_y = 0;//åˆæœŸä½ç½®y
-const int goal_x = 5;//ç›®æ¨™ä½ç½®x
-const int goal_y = 5;//ç›®æ¨™ä½ç½®y
-const int open_num = 100;//openãƒªã‚¹ãƒˆã®å¤§ãã•è¦æ¤œè¨
+//‚ ‚Æ‚Å“ü—Í’l‚ğ‘ã“ü‚·‚é‚æ‚¤‚É•Ï‚¦‚é
+const int w_x = 5;//worldc
+const int w_y = 6;//world‰¡
+const int init_x = 0;//‰ŠúˆÊ’ux
+const int init_y = 0;//‰ŠúˆÊ’uy
+const int goal_x = 4;//–Ú•WˆÊ’ux
+const int goal_y = 5;//–Ú•WˆÊ’uy
+const int open_num = 100;//openƒŠƒXƒg‚Ì‘å‚«‚³—vŒŸ“¢
 const int cost = 1;
 
 
-//é…åˆ—ã‚’åˆæœŸåŒ–ã™ã‚‹é–¢æ•°
+//”z—ñ‚ğ‰Šú‰»‚·‚éŠÖ”
 void init_array(int (&array)[w_x][w_y],int num){
 	for(int i=0;i<w_x;i++){
 		for(int j=0;j<w_y;j++){
@@ -24,8 +24,8 @@ void init_array(int (&array)[w_x][w_y],int num){
 	}
 }
 
-//é…åˆ—ã«æ•°å€¤ã‚’ä¸€æ‹¬ä»£å…¥ã™ã‚‹é–¢æ•°
-void sub_array(int *array,int num1,int num2,int num3,int num4,int num5){
+//”z—ñ‚É”’l‚ğˆêŠ‡‘ã“ü‚·‚éŠÖ”
+void sub_array(int array[],int num1,int num2,int num3,int num4,int num5){
 	array[0] = num1;
 	array[1] = num2;
 	array[2] = num3;
@@ -33,37 +33,49 @@ void sub_array(int *array,int num1,int num2,int num3,int num4,int num5){
 	array[4] = num5;
 }
 
-//é…åˆ—ã®é•·ã•ã‚’åˆ¤å®šã™ã‚‹é–¢æ•°
-int len_array(int (&array)[open_num][5]){
+
+//100‚Í‹ó”’‚Æ‚İ‚È‚µ‚Ä”z—ñ‚Ì’·‚³‚ğ”»’è‚·‚éŠÖ”
+int len_array(int array[open_num][5]){
 
 	int count = 0;
-	int flag = false;
-	for(int i=0;i<100;i++){
-		if(array[i][0] == 100)
+	for(int i=0;i<open_num;i++){
+		if(array[i][0] == 100){
 			break;
+		}
 		count++;
 	}
 	return count;
-
 }
 
-//ï¼’æ¬¡å…ƒé…åˆ—ã‚’æœ€åˆã®æ•°ã§å°ã•ã„é †ã«ã‚½ãƒ¼ãƒˆã™ã‚‹é–¢æ•°
-void sort_array(int (&array)[open_num][5]){
-
-	std::sort(&array[0],&array[len_array(array)],[](auto& x,auto& y){return x[0] < y[0];});
-//ã“ã“ã§ã‚¨ãƒ©ãƒ¼ãŒã‚ã¡ã‚ƒãã¡ã‚ƒå‡ºã¦ã„ã‚‹.
-//ã‚½ãƒ¼ãƒˆã™ã‚‹é–¢æ•°ã‚’æ™®é€šã«è‡ªåˆ†ã§æ›¸ã„ã¦ä½¿ã£ãŸã»ã†ãŒã„ã„ã‹ã‚‚ã—ã‚Œãªã„.
-}
-
-//ï¼’æ¬¡å…ƒé…åˆ—ã‚’å·¦ã«ã‚µã‚¤ã‚¯ãƒªãƒƒã‚¯ã«ã‚¹ãƒ©ã‚¤ãƒ‰ã™ã‚‹é–¢æ•°
-void pop_array(int (&array)[open_num][5]){
-	for(int i=0;i<5;i++){
-		array[0][i] = 100;
+//‚QŸŒ³”z—ñ‚ğÅ‰‚Ì”‚Å¬‚³‚¢‡‚Éƒ\[ƒg‚·‚éŠÖ”
+void sort_array(int array[open_num][5]){
+//	std::sort(&array[0],&array[len_array(array)],[](auto& x,auto& y){return x[0] < y[0];});
+	int temp[5];
+	
+	for(int i=0;i<open_num;i++){
+		for(int j=0;j<open_num-1;j++){
+			if(array[j][0] > array[j+1][0]){
+				for(int k=0;k<5;k++){
+					temp[k] = array[j][k];
+					array[j][k] = array[j+1][k];
+					array[j+1][k] = temp[k];
+				}
+			}
+		}
 	}
+}
+
+
+//‚QŸŒ³”z—ñ‚ğ¶‚ÉƒXƒ‰ƒCƒh‚·‚éŠÖ”
+void pop_array(int array[open_num][5]){
 
 	for(int i=0;i<open_num-1;i++){
-		std::swap(array[i],array[i+1]);
+//		std::swap(array[i],array[i+1]);
+		for(int j=0;j<5;j++){
+			array[i][j] = array[i+1][j];
+		}
 	}
+	array[open_num-1][0] = 100;//2ŸŒ³”z—ñ‚ÌÅŒã‚Ì”z—ñ‚ğ‹ó”’‚É‚·‚é
 }
 
 
@@ -73,7 +85,7 @@ int main(void){
 							{0,1,0,0,0,0},
 							{0,1,0,0,0,0},
 							{0,1,0,0,0,0},
-							{0,0,0,0,0,0}	};
+							{0,0,0,0,1,0}	};
 
 	int heuristic[w_x][w_y] = {	{9,8,7,6,5,4},
 								{8,7,6,5,4,3},
@@ -88,8 +100,8 @@ int main(void){
 	init_array(closed,0);
 	closed[init_x][init_y] = 1;
 
-	char delta_name[] = {'u','h','s','m'};//ã‚¯ã‚ªãƒ¼ã‚¿ãƒ‹ã‚ªãƒ³ã«ã™ã‚‹
-	//ã¨ã‚Šã‚ãˆãšä¸Šå·¦ä¸‹å³ã®é ­æ–‡å­—
+//	char delta_name[] = {'u','h','s','m'};//ƒNƒI[ƒ^ƒjƒIƒ“‚É‚·‚é
+	//‚Æ‚è‚ ‚¦‚¸ã¶‰º‰E‚Ì“ª•¶š
 	int expand[w_x][w_y];
 	int action[w_x][w_y];
 
@@ -117,13 +129,13 @@ int main(void){
 			open[i][j] = 100;
 		}
 	}
-	//openãƒªã‚¹ãƒˆã‚’100ã§åˆæœŸåŒ–
-	//100ãŒå…¥ã£ã¦ã„ã‚‹openãƒªã‚¹ãƒˆã¯ç©ºã®ãƒªã‚¹ãƒˆã¨ã—ã¦æ‰±ã†
+	//openƒŠƒXƒg‚ğ100‚Å‰Šú‰»
+	//100‚ª“ü‚Á‚Ä‚¢‚éopenƒŠƒXƒg‚Í‹ó‚ÌƒŠƒXƒg‚Æ‚µ‚Äˆµ‚¤
 	
-	sub_array(open[0],f,g,h,x,y);//open[0]ã«5ã¤ã®å€¤ã‚’ä»£å…¥ã—ã¦ã„ã‚‹
+	sub_array(open[0],f,g,h,x,y);//open[0]‚É5‚Â‚Ì’l‚ğ‘ã“ü‚µ‚Ä‚¢‚é
 	
-	int found = false;//searchãŒå®Œäº†ã—ãŸã‹ã©ã†ã‹
-	int resign = false;//
+	int found = false;//search‚ªŠ®—¹‚µ‚½‚©‚Ç‚¤‚©
+	int resign = false;//openƒŠƒXƒg‚ª‹ó‚É‚È‚Á‚Ä‚µ‚Ü‚Á‚½‚©‚Ç‚¤‚©
 
 	while(found==false && resign==false){
 		if(len_array(open) == 0){
@@ -137,7 +149,7 @@ int main(void){
 			for(int i=0;i<5;i++){
 				next[i] = open[0][i];
 			}
-			pop_array(open);//pythonã§ã„ã†popé–¢æ•°
+			pop_array(open);//python‚Å‚¢‚¤popŠÖ”
 			
 			x = next[3];
 			y = next[4];
@@ -167,11 +179,11 @@ int main(void){
 		}
 	}
 
-	//çµæœã‚’ãƒ—ãƒªãƒ³ãƒˆ
+	//Œ‹‰Ê‚ğƒvƒŠƒ“ƒg
 	for(int i=0;i<w_x;i++){
 		printf("\n");
 		for(int j=0;j<w_y;j++){
-			printf("%d ",expand[i][j]);
+			printf("%3d ",expand[i][j]);
 		}
 	}
 
