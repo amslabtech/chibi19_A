@@ -60,7 +60,7 @@ double gaussian(double);//Box-Muller
 void enqueue(int, int, int, int, std::priority_queue<CellData>&, unsigned char*, int);
 void map_update_cspace(void);
 void resample(double);
-void estimate_pose(double);
+void estimate_pose(void);
 
 nav_msgs::OccupancyGrid map;
 sensor_msgs::LaserScan laser;
@@ -261,7 +261,7 @@ int main(int argc, char** argv)
 				ROS_INFO("resampling");
 				angle = 0.0;
 			}
-			estimate_pose(total_w / N);
+			estimate_pose();
 			estimated_pose.header.stamp = laser.header.stamp;
 			pose_pub.publish(estimated_pose);
 			ROS_INFO("published estimated_pose");
@@ -620,7 +620,7 @@ void resample(double total_w)
 
 }
 
-void estimate_pose(double w_avg)
+void estimate_pose(void)
 {
 	cov_x = 0.0;
 	cov_y = 0.0;
@@ -638,7 +638,7 @@ void estimate_pose(double w_avg)
 		avg_y += p_cloud[i].p_data.y;
 		avg_theta += p_cloud[i].p_data.theta;
 
-		if(w_avg < p_cloud[i].w){
+		if((1.0 / N) < p_cloud[i].w){
 			est_x += p_cloud[i].p_data.x;
 			est_y += p_cloud[i].p_data.y;
 			est_theta += p_cloud[i].p_data.theta;
