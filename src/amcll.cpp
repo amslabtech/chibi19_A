@@ -60,7 +60,7 @@ double gaussian(double);//Box-Muller
 void enqueue(int, int, int, int, std::priority_queue<CellData>&, unsigned char*, int);
 void map_update_cspace(void);
 void resample(double);
-void estimate_pose(void);
+void estimate_pose(double);
 
 nav_msgs::OccupancyGrid map;
 sensor_msgs::LaserScan laser;
@@ -261,7 +261,7 @@ int main(int argc, char** argv)
 				ROS_INFO("resampling");
 				angle = 0.0;
 			}
-			estimate_pose();
+			estimate_pose(total_w / N);
 			estimated_pose.header.stamp = laser.header.stamp;
 			pose_pub.publish(estimated_pose);
 			ROS_INFO("published estimated_pose");
@@ -620,33 +620,50 @@ void resample(double total_w)
 
 }
 
-void estimate_pose()
+void estimate_pose(double w_avg)
 {
 	cov_x = 0.0;
 	cov_y = 0.0;
 	cov_theta = 0.0;
+	int count =0;
 	double avg_x = 0.0;
 	double avg_y = 0.0;
 	double avg_theta = 0.0;
+	double est_x = 0.0;
+	double est_y = 0.0;
+	double est_theta = 0.0;
 
 	for(int i=0; i < N; i++){
 		avg_x += p_cloud[i].p_data.x;
 		avg_y += p_cloud[i].p_data.y;
 		avg_theta += p_cloud[i].p_data.theta;
+
+		if(w_avg < p_cloud[i].w){
+			est_x += p_cloud[i].p_data.x;
+			est_y += p_cloud[i].p_data.y;
+			est_theta += p_cloud[i].p_data.theta;
+			count++;
+		}
 	}
+
 	avg_x /= N;
 	avg_y /= N;
 	avg_theta /= N;
-	
-	estimated_pose.pose.position.x = avg_x;
-	estimated_pose.pose.position.y = avg_y;
-	quaternionTFToMsg(tf::createQuaternionFromYaw(avg_theta), estimated_pose.pose.orientation);
+
+	est_x /= count;
+	est_y /= count;
+	est_theta /= count;
+
+	estimated_pose.pose.position.x = est_x;
+	estimated_pose.pose.position.y = est_y;
+	quaternionTFToMsg(tf::createQuaternionFromYaw(est_theta), estimated_pose.pose.orientation);
 
 	for(int i=0; i < N; i++){
 		cov_x += pow( (p_cloud[i].p_data.x - avg_x), 2.0);
 		cov_y += pow( (p_cloud[i].p_data.y - avg_y), 2.0);
 		cov_theta += pow( (p_cloud[i].p_data.theta - avg_theta), 2.0);
 	}
+
 	cov_x = sqrt(cov_x / N);
 	cov_y = sqrt(cov_y / N);
 	cov_theta = sqrt(cov_theta / N);
