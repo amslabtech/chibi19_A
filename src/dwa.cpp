@@ -105,7 +105,6 @@ void calc_dynamic_window(std::vector<double>& dw, const Status& roomba)
 void calc_trajectory(std::vector<Status>& traj, const double v, const double y)
 {
   Speed u = {v, y};
-
   Status roomba = {0.0, 0.0, 0.0, 0.0, 0.0};
 
   traj.erase(traj.begin(), traj.end());
@@ -125,14 +124,9 @@ double calc_to_goal_cost(const std::vector<Status>& traj, const Status& roomba, 
   double y = roomba.y + l_r*std::sin(roomba.yaw + l_theta);
   double dx = goal.x - x;
   double dy = goal.y - y;
-  double to_goal_angle = 0.0;
-  double error_angle = 0.0;
-  double error_dis = 0.0;
-
-  to_goal_angle = atan(dx, dy);
-  error_angle = std::abs(to_goal_angle - last.yaw);
-
-  error_dis = std::sqrt(dx*dx + dy*dy);
+  double error_dis = std::sqrt(dx*dx + dy*dy);
+  double to_goal_angle = atan(dx, dy);
+  double error_angle = std::abs(to_goal_angle - last.yaw);
 
   return to_goal_cost_gain * error_angle + dis_goal_cost_gain * error_dis;
 }
@@ -151,19 +145,20 @@ double calc_obstacle_cost(const std::vector<Status>& traj, const std::vector<flo
   int skip_i = 2;
   int skip_j = 10;
   double x = 0.0;
-  double y = 0.0;
   double xx = 0.0;
+  double y = 0.0;
   double yy = 0.0;
   double r = 0.0;
-  double ob = 0.0;
-  double theta = 0.0;
-  double ob_theta = 0.0;
   double rr = 0.0;
+  double ob = 0.0;
   double obob = 0.0;
   double rob = 0.0;
+  double theta = 0.0;
+  double ob_theta = 0.0;
   double c = 0.0;
   double dist = 0.0;
-  double min_dist = std::numeric_limits<double>::infinity();
+  double inf = std::numeric_limits<double>::infinity();
+  double min_dist = inf;
   double left_rod_max = 1.60;
   double left_rod_min = 0.90;
   double right_rod_max = -0.90;
@@ -172,39 +167,34 @@ double calc_obstacle_cost(const std::vector<Status>& traj, const std::vector<flo
   for(int i = 0; i < traj.size(); i += skip_i){
     x = traj[i].x;
     y = traj[i].y;
-  	xx = x*x;
-  	yy = y*y;
+    xx = x*x;
+    yy = y*y;
     r = std::sqrt(xx+yy);
-
     theta = atan(x, y);
-
     ob_theta = roomba_scan.angle_min;
 
     for(int j = 0; j < obstacle.size(); j += skip_j){
-  	  if(( left_rod_min < ob_theta && ob_theta < left_rod_max) ||
-  	     ( right_rod_min < ob_theta && ob_theta < right_rod_max)){
+      if(( left_rod_min < ob_theta && ob_theta < left_rod_max) ||
+         ( right_rod_min < ob_theta && ob_theta < right_rod_max)){
           ob_theta += skip_j * roomba_scan.angle_increment;
           continue;
-  	  }
+      }
 
-	  if(obstacle[j] < 60.0){
-		  ob = obstacle[j];
-	  } else {
-		  ob = 60.0;
-	  }
-
-  		  ROS_INFO("\nob_theta = %lf \n\n", ob_theta);
+      if(obstacle[j] < 60.0){
+        ob = obstacle[j];
+      } else {
+        ob = 60.0;
       }
 
       //極座標での２点間の距離を調べる
-  	  rr = r*r;
-  	  obob = ob*ob;
-  	  rob = 2*r*ob;
-  	  c = std::cos(theta - ob_theta);
-  	  dist = std::sqrt(rr + obob - rob*c);
+      rr = r*r;
+      obob = ob*ob;
+      rob = 2*r*ob;
+      c = std::cos(theta - ob_theta);
+      dist = std::sqrt(rr + obob - rob*c);
 
       if(dist <= robot_radius){
-        return std::numeric_limits<double>::infinity();
+        return inf;
       }
 
       if(min_dist >= dist){
@@ -227,17 +217,18 @@ Speed dwa_control(const Status& roomba, const Status& goal, const std::vector<fl
   double speed_cost = 0.0;
   double to_goal_cost = 0.0;
   double exception_yawrate = max_yawrate * 0.09;
-  std::vector<double> dw = {0.0, 0.0, 0.0, 0.0};
   std::vector<Status> traj;
+  std::vector<double> dw = {0.0, 0.0, 0.0, 0.0};
 
   calc_dynamic_window(dw, roomba);
   for(double v = dw[0]; v <= dw[1]; v += dv){
     for(double y = dw[2]; y <= dw[3]; y += dyaw){
-		if(-exception_yawrate < y && y < 0.0 ||
-			0.0 < y && y < exception_yawrate){
-			continue;
-		}
+      if(-exception_yawrate < y && y < 0.0 ||
+        0.0 < y && y < exception_yawrate){
+        continue;
+      }
       ROS_INFO("\n--------------------------------------------------------------------------------------------\nv = %lf\ny = %lf\n", v, y);
+
       calc_trajectory(traj, v, y);
 
       to_goal_cost = calc_to_goal_cost(traj, roomba, goal);
@@ -261,8 +252,8 @@ Speed dwa_control(const Status& roomba, const Status& goal, const std::vector<fl
   }
 
   if(min_cost > 999.0){
-  	best_output.v = 0.0;
-  	best_output.omega = 0.3;
+    best_output.v = 0.0;
+    best_output.omega = 0.3;
   }
 
   return best_output;
