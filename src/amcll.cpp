@@ -169,28 +169,28 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh_;
 	ros::NodeHandle private_nh_("~");
 
-	private_nh_.param("alpha1", alpha1, 0.2);
-	private_nh_.param("alpha2", alpha2, 0.2);
-	private_nh_.param("alpha3", alpha3, 0.2);
-	private_nh_.param("alpha4", alpha4, 0.2);
-	private_nh_.param("init_x", init_x, 0.0);
-	private_nh_.param("init_y", init_y, 0.0);
-	private_nh_.param("init_theta", init_theta, 0.0);
-	private_nh_.param("init_x_cov", init_x_cov, 0.5*0.5);
-	private_nh_.param("init_y_cov", init_y_cov, 0.5*0.5);
-	private_nh_.param("init_theta_cov", init_theta_cov, M_PI/12.0 * M_PI/12.0);
-	private_nh_.param("max_beam", max_beam, 30);
-	private_nh_.param("MAX_RANGE", MAX_RANGE, 30.0);
-	private_nh_.param("MIN_RANGE", MIN_RANGE, 0.01);
-	private_nh_.param("z_hit", z_hit, 0.95);
-	private_nh_.param("z_rand", z_rand, 0.05);
-	private_nh_.param("sigma_hit", sigma_hit, 0.2);
-	private_nh_.param("laser_likelihood_max_dist", laser_likelihood_max_dist, 2.0);
-	private_nh_.param("alpha_fast", alpha_fast, 0.1);
-	private_nh_.param("alpha_slow", alpha_slow, 0.001);
-	private_nh_.param("N", N, 1000);
-	private_nh_.param("motion_update", motion_update, 1.0);
-	private_nh_.param("angle_update", angle_update, 1.0);
+	private_nh_.getParam("alpha1", alpha1);
+	private_nh_.getParam("alpha2", alpha2);
+	private_nh_.getParam("alpha3", alpha3);
+	private_nh_.getParam("alpha4", alpha4);
+	private_nh_.getParam("init_x", init_x);
+	private_nh_.getParam("init_y", init_y);
+	private_nh_.getParam("init_theta", init_theta);
+	private_nh_.getParam("init_x_cov", init_x_cov);
+	private_nh_.getParam("init_y_cov", init_y_cov);
+	private_nh_.getParam("init_theta_cov", init_theta_cov);
+	private_nh_.getParam("max_beam", max_beam);
+	private_nh_.getParam("MAX_RANGE", MAX_RANGE);
+	private_nh_.getParam("MIN_RANGE", MIN_RANGE);
+	private_nh_.getParam("z_hit", z_hit);
+	private_nh_.getParam("z_rand", z_rand);
+	private_nh_.getParam("sigma_hit", sigma_hit);
+	private_nh_.getParam("laser_likelihood_max_dist", laser_likelihood_max_dist);
+	private_nh_.getParam("alpha_fast", alpha_fast);
+	private_nh_.getParam("alpha_slow", alpha_slow);
+	private_nh_.getParam("N", N);
+	private_nh_.getParam("motion_update", motion_update);
+	private_nh_.getParam("angle_update", angle_update);
 
 	srand((unsigned int)time(NULL));
 	cov_x = init_x_cov;
@@ -599,7 +599,7 @@ void resample(double total_w)
 		w_diff = 0.0;
 	
 	int index = drand48() * N;
-	int beta = 0;
+	double beta = 0.0;
 	while(new_p_cloud.size() < N){
 
 		if(drand48() < w_diff){
