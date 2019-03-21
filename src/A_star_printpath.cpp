@@ -100,7 +100,7 @@ int main(void){
 	init_array(closed,0);
 	closed[init_x][init_y] = 1;
 
-	char delta_name[] = {'u','h','s','m'};//クオータニオンにする
+	char delta_name[] = {'^','<','v','>'};//クオータニオンにする
 	//とりあえず上左下右の頭文字
 	int expand[w_x][w_y];
 	int action[w_x][w_y];
