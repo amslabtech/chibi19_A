@@ -1,5 +1,5 @@
 <launch>
- 	<arg name="map_file" default="$(find chibi19_a)/a19map2.yaml"/>
+	<arg name="map_file" default="$(find chibi19_a)/DMapData.yaml"/>
 	<node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
 		<param name="frame_id" value="/map" />
 
@@ -29,4 +29,3 @@
 		<param name="motion_update" value="1.0"/>
 		<param name="angle_update" value="1.0"/>
 </launch>
-
