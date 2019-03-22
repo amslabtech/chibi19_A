@@ -1,11 +1,12 @@
 <launch>
 	<arg name="map_file" default="$(find chibi19_a)/map_data/a19map2.yaml"/>
-	<node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
+	<node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" >
 		<param name="frame_id" value="/map" />
+	</node>
 
 	<node pkg="rviz" type="rviz" name="rviz" args="-d $(find chibi19_a)/config/amcll.rviz"/>
 
-	<node pkg="chibi19_a" type="amcll" name="amcll" output="screen" />
+	<node pkg="chibi19_a" type="amcll" name="amcll" output="screen" >
 		<param name="N" value="500"/>
 		<param name="alpha1" value="0.8"/>
 		<param name="alpha2" value="0.8"/>
@@ -28,4 +29,5 @@
 		<param name="init_theta_cov" value="0.0"/>
 		<param name="motion_update" value="0.5"/>
 		<param name="angle_update" value="0.5"/>
+	</node>
 </launch>
