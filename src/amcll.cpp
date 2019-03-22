@@ -248,6 +248,12 @@ int main(int argc, char** argv)
 			for(int i=0; i < N; i++){
 				p_cloud[i].move(odom);
 				p_cloud[i].sense();
+
+				int mi = map_grid(p_cloud[i].p_data.x);
+				int mj = map_grid(p_cloud[i].p_data.y);
+				if(map.data[map_index(mi, mj)] == -1){
+					p_cloud[i].w = 0.0;
+				}
 				//ROS_INFO("w = %f", p_cloud[i].w);
 				total_w += p_cloud[i].w; 
 			}
