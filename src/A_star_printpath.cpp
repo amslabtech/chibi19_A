@@ -4,6 +4,9 @@
 //#include<algorithm>
 //#include<iostream>
 
+//マップデータから座標のサイズ、
+//初期位置、目標位置をsubscribe
+
 //あとで入力値を代入するように変える
 const int w_x = 5;//world縦
 const int w_y = 6;//world横
@@ -11,8 +14,19 @@ const int init_x = 0;//初期位置x
 const int init_y = 0;//初期位置y
 const int goal_x = 4;//目標位置x
 const int goal_y = 5;//目標位置y
-const int open_num = 100;//openリストの大きさ要検討
+const int open_num = 100;//openリストの大きさ要検討!!
 const int cost = 1;
+
+//１次元配列を２次元配列に変換する関数
+void conv_array(int array1[w_x * w_y],int array2[w_x][w_y]){
+	for(int i=0;i<w_x;i++){
+		for(int j=0;j<w_y:j++){
+			array2[i][j] = array1[i*w_y][j];
+		}
+	}
+}
+
+
 
 
 //配列を初期化する関数
@@ -34,7 +48,7 @@ void sub_array(int array[],int num1,int num2,int num3,int num4,int num5){
 }
 
 
-//100は空白とみなして配列の長さを判定する関数
+//100は空白!とみなして配列の長さを判定する関数
 int len_array(int array[open_num][5]){
 
 	int count = 0;
@@ -199,7 +213,7 @@ int main(void){
 		y = y2;
 	}
 
-	//結果をプリント
+	//結果をプリント本当はここでpublishしたい
 	for(int i=0;i<w_x;i++){
 		printf("\n");
 		for(int j=0;j<w_y;j++){
