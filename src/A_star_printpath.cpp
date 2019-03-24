@@ -60,7 +60,6 @@ int len_array(int array[open_num][5]){
 	}
 	return count;
 }
-
 //２次元配列を最初の数で小さい順にソートする関数
 void sort_array(int array[open_num][5]){
 //	std::sort(&array[0],&array[len_array(array)],[](auto& x,auto& y){return x[0] < y[0];});
@@ -78,6 +77,24 @@ void sort_array(int array[open_num][5]){
 		}
 	}
 }
+
+//絶対値を返す関数
+void abs_int(int n){
+	if(n<0)
+		n *= -1;
+	return n;
+}
+
+
+//heuristic配列を自動生成する関数
+void init_heuristic(int array[w_x][w_y]){
+	for(int i=0;i<w_x;i++){
+		for(int j=0;j<w_y;j++){
+			array[i][j] = abs_int(goal_x - i) + abs_int(goal_y - j);
+		}
+	}
+}
+
 
 
 //２次元配列を左にスライドする関数
