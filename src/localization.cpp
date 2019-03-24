@@ -61,6 +61,7 @@ void enqueue(int, int, int, int, std::priority_queue<CellData>&, unsigned char*,
 void map_update_cspace(void);
 void resample(double);
 void estimate_pose(void);
+void filter_update(void);
 
 nav_msgs::OccupancyGrid map;
 sensor_msgs::LaserScan laser;
@@ -86,6 +87,8 @@ double motion = 0.0;
 double angle = 0.0;
 double w_slow = 0.0;
 double w_fast = 0.0;
+int update_count = 0;
+int resample_interval;
 
 double alpha1;
 double alpha2;
@@ -109,7 +112,7 @@ std::vector<std::pair<int, int>> free_indices;
 
 void laserCallback(const sensor_msgs::LaserScanConstPtr& msg)
 {
-	ROS_INFO("laser received");
+	//ROS_INFO("laser received");
 	laser = *msg;
 	range_count = laser.ranges.size();
 	if(range_count){
@@ -165,7 +168,7 @@ void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 
 int main(int argc, char** argv)
 {
-	ros::init(argc, argv, "amcll");
+	ros::init(argc, argv, "localization");
 	ros::NodeHandle nh_;
 	ros::NodeHandle private_nh_("~");
 
@@ -191,7 +194,7 @@ int main(int argc, char** argv)
 	private_nh_.getParam("N", N);
 	private_nh_.getParam("motion_update", motion_update);
 	private_nh_.getParam("angle_update", angle_update);
-	
+	private_nh_.getParam("resample_interval", resample_interval);
 
 
 	srand((unsigned int)time(NULL));
@@ -245,8 +248,30 @@ int main(int argc, char** argv)
 			angle += fabs(odom.delta.theta);
 
 			previous_transform = latest_transform;
-			ROS_INFO("x: %f, y: %f, theta: %f", odom.delta.x, odom.delta.y, odom.delta.theta);
+			//ROS_INFO("x: %f, y: %f, theta: %f", odom.delta.x, odom.delta.y, odom.delta.theta);
 			double total_w = 0.0;
+			
+			/*
+			if(motion > motion_update){
+				filter_update();
+				ROS_INFO("filter update");
+				motion = 0.0;
+				update_count++;
+			}
+
+			if(angle > angle_update){
+				filter_update();
+				ROS_INFO("filter update");
+				angle = 0.0;
+				update_count++;
+			}
+			*/
+			if(cov_x < 0.05 && cov_y < 0.05){
+				filter_update();
+				//ROS_INFO("filter update");
+			}
+			ROS_INFO("cov_x = %f, cov_y = %f", cov_x, cov_y);
+	
 			for(int i=0; i < N; i++){
 				p_cloud[i].move(odom);
 				p_cloud[i].sense();
@@ -259,20 +284,25 @@ int main(int argc, char** argv)
 				//ROS_INFO("w = %f", p_cloud[i].w);
 				total_w += p_cloud[i].w; 
 			}
-			if(motion > motion_update){
+			/*if(update_count >= resample_interval){
 				resample(total_w);
 				ROS_INFO("resampling");
+				update_count = 0;
+			}*/
+			if(motion > motion_update){
+				resample(total_w);
+				//ROS_INFO("resampling");
 				motion = 0.0;
 			}
 			if(angle > angle_update){
 				resample(total_w);
-				ROS_INFO("resampling");
+				//ROS_INFO("resampling");
 				angle = 0.0;
 			}
 			estimate_pose();
 			estimated_pose.header.stamp = laser.header.stamp;
 			pose_pub.publish(estimated_pose);
-			ROS_INFO("published estimated_pose");
+			//ROS_INFO("published estimated_pose");
 
 			for(int i=0; i < N; i++){
 				geometry_msgs::Pose tmp_pose;
@@ -678,7 +708,19 @@ void estimate_pose(void)
 
 }
 
-
+void filter_update(void)
+{
+	
+	std::vector<Particle> new_p_cloud;
+	new_p_cloud.resize(0);
+	for(int i=0; i < N; i++){
+		Particle p;
+		p.init_set(estimated_pose.pose.position.x, estimated_pose.pose.position.y, tf::getYaw(estimated_pose.pose.orientation), init_x_cov, init_y_cov, init_theta_cov);
+		new_p_cloud.push_back(p);
+	}
+	
+	p_cloud = new_p_cloud;
+}
 
 
 
