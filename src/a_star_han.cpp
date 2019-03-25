@@ -10,6 +10,7 @@
 
 geometry_msgs::PoseStamped roomba_status;
 nav_msgs::OccupancyGrid map;
+bool map_flag = false;
 
 struct Open{
   int f;
@@ -35,7 +36,9 @@ bool A_star(
   int x = init[0];
   int y = init[1];
   int g = 0;
+  ROS_INFO("\nok38\n");
   int h = heuristic[x][y];
+  ROS_INFO("\nok40\n");
   int f = g + h;
   int x2 = 0;
   int y2 = 0;
@@ -142,6 +145,7 @@ bool A_star(
 
 void map_callback(const nav_msgs::OccupancyGrid::ConstPtr& msg){
   map = *msg;
+  map_flag = true;
 }
 
 void amcl_callback(const geometry_msgs::PoseStamped::ConstPtr& msg){
@@ -173,6 +177,7 @@ int main(int argc, char **argv)
 
   std::vector<std::vector<int> > heuristic(map_row, std::vector<int>(map_col, 0));
   for(int row = 0; row < map_row; row++){
+  ROS_INFO("\nok\n");
     for(int col = 0; col < map_col; col++){
       heuristic[row][col] = map_row + map_col - row - col - 2;
     }
@@ -189,7 +194,7 @@ int main(int argc, char **argv)
 
 //    roomba_gpath.erase(roomba_gpath.begin(), roomba_gpath.end());
 
-    if(A_star(roomba_gpath, grid, heuristic, init, goal)){
+    if(A_star(roomba_gpath, grid, heuristic, init, goal) && map_flag){
       roomba_gpath_pub.publish(roomba_gpath);
     }
 
