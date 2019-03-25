@@ -24,18 +24,6 @@ void A_star(
   const std::vector<int>& init,
   const std::vector<int>& goal
 ){
-  std::vector<std::vector<char> > delta = {
-    {-1,  0},
-    //{-1, -1},
-    { 0, -1},
-    //{ 1, -1},
-    { 1,  0},
-    //{ 1,  1},
-    { 0,  1},
-    //{-1,  1}
-  };
-  std::vector<char> delta_name = {'^','>','v','<'};
-
   bool found = false;
   bool resign = false;
   int row = map.info.height;
@@ -51,6 +39,18 @@ void A_star(
   int h2 = 0;
   int f2 = 0;
   int cost = 1;
+
+  std::vector<std::vector<char> > delta = {
+    {-1,  0},
+    //{-1, -1},
+    { 0, -1},
+    //{ 1, -1},
+    { 1,  0},
+    //{ 1,  1},
+    { 0,  1}
+    //{-1,  1}
+  };
+  std::vector<char> delta_name = {'^','>','v','<'};
 
   std::vector<std::vector<bool> > closed(row, std::vector<bool>(col, false));
   closed[init[0]][init[1]] = true;
