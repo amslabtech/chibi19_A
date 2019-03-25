@@ -24,7 +24,7 @@
 #define to_goal_cost_gain 0.000
 #define dis_goal_cost_gain 0.010
 
-//nav_msgs::Odometry roomba_odom;
+nav_msgs::Odometry roomba_odom;
 geometry_msgs::PoseStamped roomba_status;
 sensor_msgs::LaserScan roomba_scan;
 
@@ -301,14 +301,19 @@ bool is_normalized()
   }
 }
 
-void amcl_callback(const geometry::PoseStamped::ConstPtr& msg)
+void odom_callback(const nav_msgs::Odometry::ConstPtr& msg)
+{
+  roomba_odom = *msg;
+}
+
+void amcl_callback(const geometry_msgs::PoseStamped::ConstPtr& msg)
 {
   roomba_status = *msg;
 }
 
-void scan_callback(const sensor_msgs::LaserScan::ConstPtr& scan_msg)
+void scan_callback(const sensor_msgs::LaserScan::ConstPtr& msg)
 {
-  roomba_scan = *scan_msg;
+  roomba_scan = *msg;
 }
 
 int main(int argc, char **argv)
@@ -325,9 +330,9 @@ int main(int argc, char **argv)
   ros::NodeHandle n;
 
   ros::Publisher roomba_auto_pub = n.advertise<roomba_500driver_meiji::RoombaCtrl>("roomba/control", 1);
-  //ros::Subscriber roomba_odom_sub = n.subscribe("roomba/odometry", 1,chatter_callback);
-  ros::Subscriber roomba_status_sub = n.subscribe("amcl_pose", 1,amcl_callback);
-  ros::Subscriber roomba_scan_sub = n.subscribe("scan",1,scan_callback);
+  ros::Subscriber roomba_odom_sub = n.subscribe("roomba/odometry", 1, odom_callback);
+  ros::Subscriber roomba_status_sub = n.subscribe("amcl_pose", 1, amcl_callback);
+  ros::Subscriber roomba_scan_sub = n.subscribe("scan",1, scan_callback);
 
   ros::Rate loop_rate(10);
 
