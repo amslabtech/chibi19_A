@@ -227,3 +227,6 @@ add_executable(localization src/localization.cpp)
 target_link_libraries(localization ${catkin_LIBRARIES})
 add_dependencies(localization chibi19_a_generate_messages_cpp)
 
+add_executable(a_star src/A_star_han.cpp)
+target_link_libraries(a_star ${catkin_LIBRARIES})
+add_dependencies(a_star chibi19_a_generate_messages_cpp)

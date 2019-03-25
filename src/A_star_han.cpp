@@ -1,36 +1,40 @@
 #include "ros/ros.h"
+#include "nav_msgs/Path.h"
+#include "nav_msgs/OccupancyGrid.h"
+#include "geometry_msgs/PoseStamped.h"
 #include <sstream>
 #include <vector>
 #include <algorithm>
 
-geometory_msgs::PoseStamped roomba_status;
+geometry_msgs::PoseStamped roomba_status;
 nav_msgs::OccupancyGrid map;
 
 struct Open{
-  int f,
-  int g,
-  int h,
-  int x,
-  int y
-}
+  int f;
+  int g;
+  int h;
+  int x;
+  int y;
+};
 
 void A_star(
-    std::vector<std::vector<char> >& policy,
-    const std::vector<std::vector<char> >& grid,
-    const std::vector<std::vector<int> >& heuristic,
-    const std::vector<char>& init,
-    const std::vector<char>& goal
-    ){
+  std::vector<std::vector<char> >& policy,
+  const std::vector<std::vector<char> >& grid,
+  const std::vector<std::vector<int> >& heuristic,
+  const std::vector<int>& init,
+  const std::vector<int>& goal
+){
   std::vector<std::vector<char> > delta = {
     {-1,  0},
-    {-1, -1},
+    //{-1, -1},
     { 0, -1},
-    { 1, -1},
+    //{ 1, -1},
     { 1,  0},
-    { 1,  1},
+    //{ 1,  1},
     { 0,  1},
-    {-1,  1}
+    //{-1,  1}
   };
+  std::vector<char> delta_name = {'^','>','v','<'};
 
   bool found = false;
   bool resign = false;
@@ -48,9 +52,9 @@ void A_star(
   int f2 = 0;
   int cost = 1;
 
-  std::vector<std::vector<bool> > closed(row, vector<bool>(col, false));
+  std::vector<std::vector<bool> > closed(row, std::vector<bool>(col, false));
   closed[init[0]][init[1]] = true;
-  std::vector<std::vector<char> > action(row, vector<char>(col, -1));
+  std::vector<std::vector<char> > action(row, std::vector<char>(col, -1));
 
   Open open_init = {f, g, h, x, y};
   std::vector<Open> open;
@@ -66,7 +70,7 @@ void A_star(
     } else {
       std::sort(open.begin(), open.end(),
           [](const Open& x, const Open& y) {
-            reutrn x.f > y.f;
+            return x.f > y.f;
           });
       next = open.back();
       open.pop_back();
@@ -74,14 +78,14 @@ void A_star(
       y = next.y;
       g = next.g;
 
-      if(x == goal[0] && y = goal[1]){
+      if(x == goal[0] && y == goal[1]){
         found = true;
       } else {
         for(char i = 0; i < delta.size(); i++){
           x2 = x + delta[i][0];
           y2 = y + delta[i][1];
           if(x2 >= 0 && x2 < grid.size() && y2 >= 0 && y2 < grid[0].size()){
-            if(close[x2][y2] && !grid[x2][y2]){
+            if(!closed[x2][y2] && !grid[x2][y2]){
               g2 = g + cost;
               h2 = heuristic[x2][y2];
               f2 = g2 + h2;
@@ -93,7 +97,7 @@ void A_star(
               new_open.y = y2;
               open.push_back(new_open);
 
-              close[x2][y2] = true;
+              closed[x2][y2] = true;
               action[x2][y2] = i;
             }
           }
@@ -116,7 +120,7 @@ void A_star(
 
   for(int i = 0; i < row; i++){
     ROS_INFO("\n");
-    for(int i = 0; i < row; i++){
+    for(int j = 0; j < col; j++){
       ROS_INFO("%3c ", policy[i][j]);
     }
   }
@@ -126,8 +130,8 @@ void map_callback(const nav_msgs::OccupancyGrid::ConstPtr& msg){
   map = *msg;
 }
 
-void amcl_callback(const geometory_msgs::PoseStamped::ConstPtr& msg){
-  map = *msg;
+void amcl_callback(const geometry_msgs::PoseStamped::ConstPtr& msg){
+  roomba_status = *msg;
 }
 
 int main(int argc, char **argv)
@@ -135,13 +139,13 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "a_star");
   ros::NodeHandle n;
 
-  ros::Publisher roomba_gpath_pub = n.advertise<nav_msg::Path>("dwa", 1);
+  ros::Publisher roomba_gpath_pub = n.advertise<nav_msgs::Path>("dwa", 1);
   ros::Subscriber map_sub = n.subscribe("map", 1, map_callback);
   ros::Subscriber roomba_status_sub = n.subscribe("amcl_pose", 1, amcl_callback);
   
   ros::Rate loop_rate(10);
 
-  nav_msg::Path roomba_gpath;
+  nav_msgs::Path roomba_gpath;
 
   unsigned int map_row = map.info.height;
   unsigned int map_col = map.info.width;
@@ -149,7 +153,7 @@ int main(int argc, char **argv)
   std::vector<std::vector<char> > grid(map_row, std::vector<char>(map_col, 0));
   for(int row = 0; row < map_row; row++){
     for(int col = 0; col < map_col; col++){
-      gird[row][col] = map.data[ row*map_col + col];
+      grid[row][col] = map.data[ row*map_col + col];
     }
   }
 
@@ -160,15 +164,12 @@ int main(int argc, char **argv)
     }
   }
 
-  std::vector<std::vecctor<char> > policy(map_row, std::vector<char>(map_col, ' '));
+  std::vector<std::vector<char> > policy(map_row, std::vector<char>(map_col, ' '));
 
   std::vector<int> init = {0, 0};
-  std::vector<int> goal = {map_row - 1, map_col -1}
+  std::vector<int> goal = {(int)map_row - 1, (int)map_col -1};
 
 
-  std::vector<char> delta_name = {
-    '','','','','','','',''
-  }
 
   while(ros::ok())
   {
