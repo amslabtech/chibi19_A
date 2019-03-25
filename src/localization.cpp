@@ -76,9 +76,11 @@ double init_theta;
 double init_x_cov;
 double init_y_cov;
 double init_theta_cov;
-double cov_x;
-double cov_y;
-double cov_theta;
+double x_cov;
+double y_cov;
+double theta_cov;
+double x_cov_thresh;
+double y_cov_thresh;
 double alpha_slow;
 double alpha_fast;
 double motion_update;
@@ -134,16 +136,6 @@ void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 	
 	map = *msg;
 
-/*	free_indices.resize(0);
-	for(int i=0; i < map.info.width; i++){
-		for(int j=0; j < map.info.height; j++){
-			int index = i + j*map.info.width;
-			if(map.data[index] == 0){
-				free_indices.push_back(std::make_pair(i, j));
-			}
-		}
-	}
-*/	
 	occ_dist = (double*)malloc(sizeof(double) * map.info.width * map.info.height);
 	
 	for(int i=0; i < N; i++){
@@ -182,6 +174,8 @@ int main(int argc, char** argv)
 	private_nh_.getParam("init_x_cov", init_x_cov);
 	private_nh_.getParam("init_y_cov", init_y_cov);
 	private_nh_.getParam("init_theta_cov", init_theta_cov);
+	private_nh_.getParam("x_cov_thresh", x_cov_thresh);
+	private_nh_.getParam("y_cov_thresh", y_cov_thresh);
 	private_nh_.getParam("max_beam", max_beam);
 	private_nh_.getParam("MAX_RANGE", MAX_RANGE);
 	private_nh_.getParam("MIN_RANGE", MIN_RANGE);
@@ -194,13 +188,12 @@ int main(int argc, char** argv)
 	private_nh_.getParam("N", N);
 	private_nh_.getParam("motion_update", motion_update);
 	private_nh_.getParam("angle_update", angle_update);
-	private_nh_.getParam("resample_interval", resample_interval);
 
 
 	srand((unsigned int)time(NULL));
-	cov_x = init_x_cov;
-	cov_y = init_y_cov;
-	cov_theta = init_theta_cov;
+	x_cov = init_x_cov;
+	y_cov = init_y_cov;
+	theta_cov = init_theta_cov;
 	p_poses.header.frame_id = "map";
 	estimated_pose.header.frame_id = "map";
 	estimated_pose.pose.position.x = init_x;
@@ -251,26 +244,11 @@ int main(int argc, char** argv)
 			//ROS_INFO("x: %f, y: %f, theta: %f", odom.delta.x, odom.delta.y, odom.delta.theta);
 			double total_w = 0.0;
 			
-			/*
-			if(motion > motion_update){
-				filter_update();
-				ROS_INFO("filter update");
-				motion = 0.0;
-				update_count++;
-			}
-
-			if(angle > angle_update){
-				filter_update();
-				ROS_INFO("filter update");
-				angle = 0.0;
-				update_count++;
-			}
-			*/
-			if(cov_x < 0.05 && cov_y < 0.05){
+			if(x_cov < x_cov_thresh && y_cov < y_cov_thresh){
 				filter_update();
 				//ROS_INFO("filter update");
 			}
-			ROS_INFO("cov_x = %f, cov_y = %f", cov_x, cov_y);
+			ROS_INFO("x_cov = %f, y_cov = %f", x_cov, y_cov);
 	
 			for(int i=0; i < N; i++){
 				p_cloud[i].move(odom);
@@ -278,17 +256,12 @@ int main(int argc, char** argv)
 
 				int mi = map_grid(p_cloud[i].p_data.x);
 				int mj = map_grid(p_cloud[i].p_data.y);
-				if(map.data[map_index(mi, mj)] == -1){
+				if((map.data[map_index(mi, mj)] == -1) || (map.data[map_index(mi, mj)] == 100)){
 					p_cloud[i].w = 0.0;
 				}
 				//ROS_INFO("w = %f", p_cloud[i].w);
 				total_w += p_cloud[i].w; 
 			}
-			/*if(update_count >= resample_interval){
-				resample(total_w);
-				ROS_INFO("resampling");
-				update_count = 0;
-			}*/
 			if(motion > motion_update){
 				resample(total_w);
 				//ROS_INFO("resampling");
@@ -498,19 +471,6 @@ Particle::Particle(void)
 	w = 1.0 / (double)N;
 }
 
-/*
-void Particle::init_set(void)
-{
-	unsigned int rand_index = drand48() * free_indices.size();
-	//unsigend int rand_index = (rand() / RAND_MAX) * free_indices.size();
-	std::pair<int, int> free_point = free_indices[rand_index];
-
-	p_data.x = free_point.first * map.info.resolution;
-	p_data.y = free_point.second * map.info.resolution;
-	p_data.theta = drand48() * (2* M_PI) - M_PI;
-
-}
-*/
 void Particle::init_set(double x, double y, double theta, double x_cov, double y_cov, double theta_cov)
 {	
 	double i,j;
@@ -660,9 +620,9 @@ void resample(double total_w)
 
 void estimate_pose(void)
 {
-	cov_x = 0.0;
-	cov_y = 0.0;
-	cov_theta = 0.0;
+	x_cov = 0.0;
+	y_cov = 0.0;
+	theta_cov = 0.0;
 	int count =0;
 	double avg_x = 0.0;
 	double avg_y = 0.0;
@@ -697,14 +657,14 @@ void estimate_pose(void)
 	quaternionTFToMsg(tf::createQuaternionFromYaw(est_theta), estimated_pose.pose.orientation);
 
 	for(int i=0; i < N; i++){
-		cov_x += pow( (p_cloud[i].p_data.x - avg_x), 2.0);
-		cov_y += pow( (p_cloud[i].p_data.y - avg_y), 2.0);
-		cov_theta += pow( (p_cloud[i].p_data.theta - avg_theta), 2.0);
+		x_cov += pow( (p_cloud[i].p_data.x - avg_x), 2.0);
+		y_cov += pow( (p_cloud[i].p_data.y - avg_y), 2.0);
+		theta_cov += pow( (p_cloud[i].p_data.theta - avg_theta), 2.0);
 	}
 
-	cov_x = sqrt(cov_x / N);
-	cov_y = sqrt(cov_y / N);
-	cov_theta = sqrt(cov_theta / N);
+	x_cov = sqrt(x_cov / N);
+	y_cov = sqrt(y_cov / N);
+	theta_cov = sqrt(theta_cov / N);
 
 }
 

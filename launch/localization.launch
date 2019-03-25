@@ -7,8 +7,8 @@
 
 	<node pkg="chibi19_a" type="localization" name="localization" output="screen" >
 		<param name="N" value="500"/>
-		<param name="alpha1" value="0.8"/>
-		<param name="alpha2" value="0.8"/>
+		<param name="alpha1" value="0.2"/>
+		<param name="alpha2" value="0.2"/>
 		<param name="alpha3" value="0.8"/>
 		<param name="alpha4" value="0.2"/>
 		<param name="z_hit" value="0.5"/>
@@ -20,14 +20,15 @@
 		<param name="max_beam" value="30"/>
 		<param name="MAX_RANGE" value="25"/>
 		<param name="MIN_RANGE" value="0.01"/>
-		<param name="init_x" value="-0.9"/>
-		<param name="init_y" value="-4.0"/>
-		<param name="init_theta" value="-1.5"/>
-		<param name="init_x_cov" value="0.6"/>
-		<param name="init_y_cov" value="0.6"/>
-		<param name="init_theta_cov" value="0.5"/>
+		<param name="init_x" value="-0.7"/>
+		<param name="init_y" value="-2.3"/>
+		<param name="init_theta" value="-0.7"/>
+		<param name="init_x_cov" value="0.5"/>
+		<param name="init_y_cov" value="0.5"/>
+		<param name="init_theta_cov" value="0.2"/>
+		<param name="x_cov_thresh" value="0.10"/>
+		<param name="y_cov_thresh" value="0.10"/>
 		<param name="motion_update" value="0.1"/>
 		<param name="angle_update" value="0.1"/>
-		<param name="resample_interval" value="1"/>
 	</node>
 </launch>
