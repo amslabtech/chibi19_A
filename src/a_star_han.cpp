@@ -165,6 +165,8 @@ int main(int argc, char **argv)
 
   nav_msgs::Path roomba_gpath;
 
+
+//ここのmap.info.heightとかもmap_flagがtrueになってからじゃないとだめ？
   unsigned int map_row = map.info.height;
   unsigned int map_col = map.info.width;
 
