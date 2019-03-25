@@ -24,7 +24,8 @@
 #define to_goal_cost_gain 0.000
 #define dis_goal_cost_gain 0.010
 
-nav_msgs::Odometry roomba_odom;
+//nav_msgs::Odometry roomba_odom;
+geometry_msgs::PoseStamped roomba_status;
 sensor_msgs::LaserScan roomba_scan;
 
 struct Speed{
@@ -276,7 +277,7 @@ int is_goal(const Status& roomba, const Status& goal)
 
 bool is_normalized()
 {
-  double square_sum = roomba_odom.pose.pose.orientation.x *\
+  //double square_sum = roomba_odom.pose.pose.orientation.x *\
                       roomba_odom.pose.pose.orientation.x +\
                       roomba_odom.pose.pose.orientation.y *\
                       roomba_odom.pose.pose.orientation.y +\
@@ -284,6 +285,14 @@ bool is_normalized()
                       roomba_odom.pose.pose.orientation.z +\
                       roomba_odom.pose.pose.orientation.w *\
                       roomba_odom.pose.pose.orientation.w;
+  double square_sum = roomba_status.pose.orientation.x *\
+                      roomba_status.pose.orientation.x +\
+                      roomba_status.pose.orientation.y *\
+                      roomba_status.pose.orientation.y +\
+                      roomba_status.pose.orientation.z *\
+                      roomba_status.pose.orientation.z +\
+                      roomba_status.pose.orientation.w *\
+                      roomba_status.pose.orientation.w;
 
   if(std::fabs(square_sum - 1.0) > 0.1){
     return false;
@@ -292,9 +301,9 @@ bool is_normalized()
   }
 }
 
-void chatter_callback(const nav_msgs::Odometry::ConstPtr& msg)
+void amcl_callback(const geometry::PoseStamped::ConstPtr& msg)
 {
-  roomba_odom = *msg;
+  roomba_status = *msg;
 }
 
 void scan_callback(const sensor_msgs::LaserScan::ConstPtr& scan_msg)
@@ -315,8 +324,9 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "dwa");
   ros::NodeHandle n;
 
-  ros::Publisher roomba_auto_pub = n.advertise<roomba_500driver_meiji::RoombaCtrl>("/roomba/control", 1);
-  ros::Subscriber roomba_odom_sub = n.subscribe("roomba/odometry", 1,chatter_callback);
+  ros::Publisher roomba_auto_pub = n.advertise<roomba_500driver_meiji::RoombaCtrl>("roomba/control", 1);
+  //ros::Subscriber roomba_odom_sub = n.subscribe("roomba/odometry", 1,chatter_callback);
+  ros::Subscriber roomba_status_sub = n.subscribe("amcl_pose", 1,amcl_callback);
   ros::Subscriber roomba_scan_sub = n.subscribe("scan",1,scan_callback);
 
   ros::Rate loop_rate(10);
@@ -331,9 +341,12 @@ int main(int argc, char **argv)
       continue;
     }
 
-    roomba.x = roomba_odom.pose.pose.position.x;
-    roomba.y = roomba_odom.pose.pose.position.y;
-    roomba.yaw = tf::getYaw(roomba_odom.pose.pose.orientation);
+    //roomba.x = roomba_odom.pose.pose.position.x;
+    roomba.x = roomba_status.pose.position.x;
+    //roomba.y = roomba_odom.pose.pose.position.y;
+    roomba.y = roomba_status.pose.position.y;
+    //roomba.yaw = tf::getYaw(roomba_odom.pose.pose.orientation);
+    roomba.yaw = tf::getYaw(roomba_status.pose.orientation);
     roomba.v = max_speed * roomba_odom.twist.twist.linear.x;
     roomba.omega = max_yawrate * roomba_odom.twist.twist.angular.z;
 
