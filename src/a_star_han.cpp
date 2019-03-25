@@ -1,10 +1,12 @@
 #include "ros/ros.h"
+//#include "tf/transform_datatypes.h"
 #include "nav_msgs/Path.h"
 #include "nav_msgs/OccupancyGrid.h"
 #include "geometry_msgs/PoseStamped.h"
 #include <sstream>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 
 geometry_msgs::PoseStamped roomba_status;
 nav_msgs::OccupancyGrid map;
@@ -17,13 +19,15 @@ struct Open{
   int y;
 };
 
-void A_star(
-  std::vector<std::vector<char> >& policy,
+bool A_star(
+  //std::vector<std::vector<char> >& policy,
+  nav_msgs::Path roomba_gpath,
   const std::vector<std::vector<char> >& grid,
   const std::vector<std::vector<int> >& heuristic,
   const std::vector<int>& init,
   const std::vector<int>& goal
 ){
+  ROS_INFO("\nok30\n");
   bool found = false;
   bool resign = false;
   int row = map.info.height;
@@ -39,7 +43,12 @@ void A_star(
   int h2 = 0;
   int f2 = 0;
   int cost = 1;
+  float res = map.info.resolution;
+  double origin_x = map.info.origin.position.x;
+  double origin_y = map.info.origin.position.y;
+  geometry_msgs::PoseStamped gpath_point;
 
+  ROS_INFO("\nok50\n");
   std::vector<std::vector<char> > delta = {
     {-1,  0},
     //{-1, -1},
@@ -50,7 +59,7 @@ void A_star(
     { 0,  1}
     //{-1,  1}
   };
-  std::vector<char> delta_name = {'^','>','v','<'};
+  //std::vector<double> delta_name = {'^','>','v','<'};
 
   std::vector<std::vector<bool> > closed(row, std::vector<bool>(col, false));
   closed[init[0]][init[1]] = true;
@@ -63,6 +72,7 @@ void A_star(
   Open next = {0, 0, 0, 0, 0};
   Open new_open = {0, 0, 0, 0, 0};
 
+  ROS_INFO("\nok75\n");
   while(!found && !resign){
     if(!open.size()){
       resign = true;
@@ -84,7 +94,7 @@ void A_star(
         for(char i = 0; i < delta.size(); i++){
           x2 = x + delta[i][0];
           y2 = y + delta[i][1];
-          if(x2 >= 0 && x2 < grid.size() && y2 >= 0 && y2 < grid[0].size()){
+          if(x2 >= 0 && x2 < row && y2 >= 0 && y2 < col){
             if(!closed[x2][y2] && !grid[x2][y2]){
               g2 = g + cost;
               h2 = heuristic[x2][y2];
@@ -99,6 +109,10 @@ void A_star(
 
               closed[x2][y2] = true;
               action[x2][y2] = i;
+
+              gpath_point.pose.position.x = x2/res + origin_x;
+              gpath_point.pose.position.y = y2/res + origin_y;
+              roomba_gpath.poses.push_back(gpath_point);
             }
           }
         }
@@ -106,24 +120,24 @@ void A_star(
     }
   }
 
-  x = goal[0];
-  y = goal[1];
-  policy[x][y] = '*';
 
-  while(x != init[0] && y != init[1]){
-    x2 = x - delta[action[x][y]][0];
-    y2 = y - delta[action[x][y]][1];
-    policy[x2][y2] = delta_name[action[x][y]];
-    x = x2;
-    y = y2;
-  }
+//  x = goal[0];
+//  y = goal[1];
+//  policy[x][y] = '*';
+//  while(x != init[0] && y != init[1]){
+//    x2 = x - delta[action[x][y]][0];
+//    y2 = y - delta[action[x][y]][1];
+//    policy[x2][y2] = delta_name[action[x][y]];
+//    x = x2;
+//    y = y2;
+//  }
 
-  for(int i = 0; i < row; i++){
-    ROS_INFO("\n");
-    for(int j = 0; j < col; j++){
-      ROS_INFO("%3c ", policy[i][j]);
-    }
-  }
+//  for(int i = 0; i < row; i++){
+//    ROS_INFO("\n");
+//    for(int j = 0; j < col; j++){
+//      ROS_INFO("%3c ", policy[i][j]);
+//    }
+//  }
 }
 
 void map_callback(const nav_msgs::OccupancyGrid::ConstPtr& msg){
@@ -169,15 +183,15 @@ int main(int argc, char **argv)
   std::vector<int> init = {0, 0};
   std::vector<int> goal = {(int)map_row - 1, (int)map_col -1};
 
-
-
   while(ros::ok())
   {
     ros::spinOnce();
 
-    A_star(policy, grid, heuristic, init, goal);
+//    roomba_gpath.erase(roomba_gpath.begin(), roomba_gpath.end());
 
-    roomba_gpath_pub.publish(roomba_gpath);
+    if(A_star(roomba_gpath, grid, heuristic, init, goal)){
+      roomba_gpath_pub.publish(roomba_gpath);
+    }
 
     loop_rate.sleep();
   }
