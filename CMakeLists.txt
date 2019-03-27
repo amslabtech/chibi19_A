@@ -205,28 +205,24 @@ include_directories(
 
 add_executable(roomba_auto_test src/roomba_auto_test.cpp)
 target_link_libraries(roomba_auto_test ${catkin_LIBRARIES})
-add_dependencies(roomba_auto_test chibi19_a_generate_messages_cpp)
 
 add_executable(linear_test src/linear_test.cpp)
 target_link_libraries(linear_test ${catkin_LIBRARIES})
-add_dependencies(linear_test chibi19_a_generate_messages_cpp)
 
 add_executable(scan_test src/scan_test.cpp)
 target_link_libraries(scan_test ${catkin_LIBRARIES})
-add_dependencies(scan_test chibi19_a_generate_messages_cpp)
 
 add_executable(dwa src/dwa.cpp)
 target_link_libraries(dwa ${catkin_LIBRARIES})
-add_dependencies(dwa chibi19_a_generate_messages_cpp)
 
 add_executable(amcll src/amcll.cpp)
 target_link_libraries(amcll ${catkin_LIBRARIES})
-add_dependencies(amcll chibi19_a_generate_messages_cpp)
 
 add_executable(localization src/localization.cpp)
 target_link_libraries(localization ${catkin_LIBRARIES})
-add_dependencies(localization chibi19_a_generate_messages_cpp)
 
-add_executable(a_star src/a_star_han.cpp)
+add_executable(a_star src/a_star.cpp)
 target_link_libraries(a_star ${catkin_LIBRARIES})
-add_dependencies(a_star chibi19_a_generate_messages_cpp)
+
+add_executable(a_star_s src/a_star_s.cpp)
+target_link_libraries(a_star_s ${catkin_LIBRARIES})
