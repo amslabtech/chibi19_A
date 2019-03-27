@@ -28,7 +28,6 @@ bool A_star(
   const std::vector<int>& init,
   const std::vector<int>& goal
 ){
-  ROS_INFO("\nok30\n");
   bool found = false;
   bool resign = false;
   int row = map.info.height;
@@ -36,9 +35,7 @@ bool A_star(
   int x = init[0];
   int y = init[1];
   int g = 0;
-  ROS_INFO("\nok38\n");
   int h = heuristic[x][y];
-  ROS_INFO("\nok40\n");
   int f = g + h;
   int x2 = 0;
   int y2 = 0;
@@ -51,7 +48,6 @@ bool A_star(
   double origin_y = map.info.origin.position.y;
   geometry_msgs::PoseStamped gpath_point;
 
-  ROS_INFO("\nok50\n");
   std::vector<std::vector<char> > delta = {
     {-1,  0},
     //{-1, -1},
@@ -75,11 +71,13 @@ bool A_star(
   Open next = {0, 0, 0, 0, 0};
   Open new_open = {0, 0, 0, 0, 0};
 
-  ROS_INFO("\nok75\n");
+  int roop_count = 0;
+  //ROS_INFO("\nopen.size() = %ld\n", open.size());
   while(!found && !resign){
+    roop_count++;
     if(!open.size()){
       resign = true;
-      ROS_INFO("\nfail\n");
+      ROS_INFO("\nfail\nfound = %d\nresign = %d\nroop_count = %d\n", found, resign, roop_count);
     } else {
       std::sort(open.begin(), open.end(),
           [](const Open& x, const Open& y) {
@@ -98,7 +96,7 @@ bool A_star(
           x2 = x + delta[i][0];
           y2 = y + delta[i][1];
           if(x2 >= 0 && x2 < row && y2 >= 0 && y2 < col){
-            if(!closed[x2][y2] && !grid[x2][y2]){
+            if(!closed[x2][y2] && -1 < grid[x2][y2] && grid[x2][y2] < 100){
               g2 = g + cost;
               h2 = heuristic[x2][y2];
               f2 = g2 + h2;
@@ -157,7 +155,7 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "a_star");
   ros::NodeHandle n;
 
-  ros::Publisher roomba_gpath_pub = n.advertise<nav_msgs::Path>("dwa", 1);
+  ros::Publisher roomba_gpath_pub = n.advertise<nav_msgs::Path>("gpath", 1);
   ros::Subscriber map_sub = n.subscribe("map", 1, map_callback);
   ros::Subscriber roomba_status_sub = n.subscribe("amcl_pose", 1, amcl_callback);
   
@@ -165,43 +163,66 @@ int main(int argc, char **argv)
 
   nav_msgs::Path roomba_gpath;
 
-
 //ここのmap.info.heightとかもmap_flagがtrueになってからじゃないとだめ？
+//おそらくそうじゃ
+  while(!map_flag){
+    ros::spinOnce();
+    ROS_INFO("\nmap unready\n");
+  }
+
   unsigned int map_row = map.info.height;
   unsigned int map_col = map.info.width;
+  bool find_init = false;
 
+  std::vector<int> init(2, 0);
+  std::vector<int> goal(2, 0);
   std::vector<std::vector<char> > grid(map_row, std::vector<char>(map_col, 0));
+  std::vector<std::vector<int> > heuristic(map_row, std::vector<int>(map_col, 0));
   for(int row = 0; row < map_row; row++){
     for(int col = 0; col < map_col; col++){
       grid[row][col] = map.data[ row*map_col + col];
-    }
-  }
-
-  std::vector<std::vector<int> > heuristic(map_row, std::vector<int>(map_col, 0));
-  for(int row = 0; row < map_row; row++){
-  ROS_INFO("\nok\n");
-    for(int col = 0; col < map_col; col++){
       heuristic[row][col] = map_row + map_col - row - col - 2;
-    }
+      //デバッグのための初期化
+      //もう少し工夫が必要
+      if(!grid[row][col]){
+        if(!find_init){
+          init[0] = row;
+          init[1] = col;
+          find_init = true;
+        }
+        if(goal[0] <= row && goal[1] <= col){
+          goal[0] = row;
+          goal[1] = col;
+        }
+      }    
+    }    
   }
+  ROS_INFO("\ninit[0] = %d\n", init[0]);
+  ROS_INFO("\ninit[1] = %d\n", init[1]);
+  ROS_INFO("\ngrid[init[0]+0][init[1]+0] = %d\n", grid[init[0]][init[1]]);//==0
+  ROS_INFO("\ngrid[init[0]+0][init[1]+1] = %d\n", grid[init[0]][init[1]+1]);//==-1
+  ROS_INFO("\ngrid[init[0]+1][init[1]+0] = %d\n", grid[init[0]+1][init[1]]);//==100
+  ROS_INFO("\ngrid[init[0]+1][init[1]+1] = %d\n", grid[init[0]+1][init[1]+1]);//==-1
+  ROS_INFO("\ngoal[0] = %d\n", goal[0]);
+  ROS_INFO("\ngoal[1] = %d\n", goal[1]);
 
-  std::vector<std::vector<char> > policy(map_row, std::vector<char>(map_col, ' '));
-
-  std::vector<int> init = {0, 0};
-  std::vector<int> goal = {(int)map_row - 1, (int)map_col -1};
+  //std::vector<std::vector<char> > policy(map_row, std::vector<char>(map_col, ' '));
 
   while(ros::ok())
   {
-    ros::spinOnce();
 
+    //ROS_INFO("\nmap_row = %d\n", map_row);
+    //ROS_INFO("\nmap_col = %d\n", map_col);
 //    roomba_gpath.erase(roomba_gpath.begin(), roomba_gpath.end());
 
     if(A_star(roomba_gpath, grid, heuristic, init, goal) && map_flag){
       roomba_gpath_pub.publish(roomba_gpath);
     }
 
+    ros::spinOnce();
+
     loop_rate.sleep();
   }
 
   return 0;
-
+}
