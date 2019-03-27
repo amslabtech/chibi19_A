@@ -7,8 +7,16 @@
 	<node pkg="chibi19_a" type="a_star_s" name="a_star_s" output="screen" >
 		<param name="ix" value="0"/>
 		<param name="iy" value="0"/>
-		<param name="gx" value="4"/>
-		<param name="gx" value="4"/>
+		<param name="gx1" value="14.5"/>
+		<param name="gy1" value="-3.5"/>
+		<param name="gx2" value="15"/>
+		<param name="gy2" value="10"/>
+		<param name="gx3" value="-18"/>
+		<param name="gy3" value="11.5"/>
+		<param name="gx4" value="-18.5"/>
+		<param name="gy4" value="-2.3"/>
+		<param name="gx5" value="0"/>
+		<param name="gy5" value="0"/>
 	</node>
 </launch>
 

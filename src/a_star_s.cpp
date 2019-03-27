@@ -9,17 +9,19 @@
 #include <cmath>
 
 bool map_received = false;
-int ix;//initx
-int iy;//inity
-int gx;//goalx
-int gy;//goaly
+
+struct landmark{
+	double x;
+	double y;
+};
+
 
 struct Open{
-  int f;
-  int g;
-  int h;
-  int x;
-  int y;
+	int f;
+	int g;
+	int h;
+	int x;
+	int y;
 };
 
 class A_star
@@ -45,7 +47,8 @@ public:
 	A_star(void);
 	void map_callback(const nav_msgs::OccupancyGrid::ConstPtr& msg);
 	void amcl_callback(const geometry_msgs::PoseStamped::ConstPtr& msg);
-	bool search_path(void);
+	void get_heuristic(int, int);
+	bool search_path(float, float, float, float);
 	void pub_path(void);
 };
 
@@ -74,10 +77,6 @@ void A_star::map_callback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
 	init.resize(2);
 	goal.resize(2);
 
-	init[0] = floor((ix - map.info.origin.position.x) / map.info.resolution);
-	init[1] = floor((iy - map.info.origin.position.y) / map.info.resolution);
-	goal[0] = floor((gx - map.info.origin.position.x) / map.info.resolution);
-	goal[1] = floor((gy - map.info.origin.position.y) / map.info.resolution);
 	
 	grid = std::vector<std::vector<char> >(map_row, std::vector<char>(map_col, 0));
 	for(int row = 0; row < map_row; row++){
@@ -87,16 +86,32 @@ void A_star::map_callback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
 	}
 
 	heuristic = std::vector<std::vector<int> >(map_row, std::vector<int>(map_col, 0));
-	for(int row = 0; row < map_row; row++){
-		for(int col = 0; col < map_col; col++){
-			heuristic[row][col] = fabs(goal[0] - row) + fabs(goal[1] - col);
-		}
-	}
+
 	map_received = true;
 }
 
-bool A_star::search_path(void)
+void A_star::get_heuristic(int gx, int gy)
 {
+    for(int row = 0; row < map_row; row++){
+		for(int col = 0; col < map_col; col++){
+			heuristic[row][col] = fabs(gx - row) + fabs(gy - col);
+		}
+	}
+}
+
+bool A_star::search_path(float ix, float iy, float gx, float gy)
+{
+
+	init[0] = floor((ix - map.info.origin.position.x) / map.info.resolution);
+	init[1] = floor((iy - map.info.origin.position.y) / map.info.resolution);
+	goal[0] = floor((gx - map.info.origin.position.x) / map.info.resolution);
+	goal[1] = floor((gy - map.info.origin.position.y) / map.info.resolution);
+
+	ROS_INFO("start = (%d, %d)", init[0], init[1]);
+	ROS_INFO("goal = (%d, %d)", goal[0], goal[1]);
+	
+	get_heuristic(goal[0], goal[1]);
+
 
 	bool found = false;
 	bool resign = false;
@@ -118,6 +133,8 @@ bool A_star::search_path(void)
 	double origin_y = map.info.origin.position.y;
 	geometry_msgs::PoseStamped gpath_point;
 	gpath_point.header.frame_id = "map";
+	//roomba_gpath.poses.clear();
+
 
 	std::vector<std::vector<double> > delta = {
     	{-1,  0, M_PI},
@@ -137,7 +154,6 @@ bool A_star::search_path(void)
 	Open open_init = {f, g, h, x, y};
 	std::vector<Open> open;
 	open.push_back(open_init);
-
 	Open next = {0, 0, 0, 0, 0};
 	Open new_open = {0, 0, 0, 0, 0};
 
@@ -158,22 +174,23 @@ bool A_star::search_path(void)
 			f = next.f;
  	     	if(x == goal[0] && y == goal[1]){
     	    	found = true;
+				ROS_INFO("found");
     	  	} else {
-    	    	for(int i = 0; i < delta.size(); i++){
-    	      		x2 = x + delta[i][0];
-    	      		y2 = y + delta[i][1];
-    	      		if(x2 >= 0 && x2 < row && y2 >= 0 && y2 < col){
-    	        		if(!closed[x2][y2] && !grid[x2][y2]){
-    	          			g2 = g + cost;
+				for(int i = 0; i < delta.size(); i++){
+					x2 = x + delta[i][0];
+					y2 = y + delta[i][1];
+					if(x2 >= 0 && x2 < row && y2 >= 0 && y2 < col){
+						if(!closed[x2][y2] && !grid[x2][y2]){
+							g2 = g + cost;
     	          			h2 = heuristic[x2][y2];
     	          			f2 = g2 + h2;
 	
-    	          			new_open.f = f2;
-    	          			new_open.g = g2;
-    	          			new_open.h = h2;
-    	          			new_open.x = x2;
- 			             	new_open.y = y2;
-    	    				open.push_back(new_open);
+		          			new_open.f = f2;
+		          			new_open.g = g2;
+		          			new_open.h = h2;
+		          			new_open.x = x2;
+			             	new_open.y = y2;
+		    				open.push_back(new_open);
 
 							closed[x2][y2] = true;
 							action[x2][y2] = i;
@@ -187,24 +204,27 @@ bool A_star::search_path(void)
 	ROS_INFO("search completed");	
 	x = goal[0];
 	y = goal[1];
+	std::vector<geometry_msgs::PoseStamped> tmp_poses;
+
 	gpath_point.pose.position.x = x*res + origin_x;
 	gpath_point.pose.position.y = y*res + origin_y;
 	gpath_point.pose.position.z = 0;
 	quaternionTFToMsg(tf::createQuaternionFromYaw(delta[action[x][y]][2]), gpath_point.pose.orientation);
 
-	roomba_gpath.poses.push_back(gpath_point);
+	tmp_poses.push_back(gpath_point);
 	while(x != init[0] || y != init[1]){
 		x2 = x - delta[action[x][y]][0];
 		y2 = y - delta[action[x][y]][1];
 		gpath_point.pose.position.x = x2*res + origin_x;
 		gpath_point.pose.position.y = y2*res + origin_y;
 		quaternionTFToMsg(tf::createQuaternionFromYaw(delta[action[x][y]][2]), gpath_point.pose.orientation);
-		roomba_gpath.poses.push_back(gpath_point);
+		tmp_poses.push_back(gpath_point);
 		
 		x = x2;
 		y = y2;
 	}
-	
+	std::reverse(tmp_poses.begin(), tmp_poses.end());
+	roomba_gpath.poses.insert(roomba_gpath.poses.end(), tmp_poses.begin(), tmp_poses.end());
 	ROS_INFO("set path");
 	return true;
 }
@@ -222,23 +242,69 @@ int main(int argc, char **argv)
 	ros::NodeHandle private_nh("~");
 	ros::Rate loop_rate(10);
 
-	private_nh.param("ix", ix, 0);
-	private_nh.param("iy", iy, 0);
-	private_nh.param("gx", gx, 4);
-	private_nh.param("gx", gy, 4);
+	std::vector<landmark> landmarks(6);
+
+	private_nh.param("ix", landmarks[0].x, 0.0);
+	private_nh.param("iy", landmarks[0].y, 0.0);
+	private_nh.param("gx1", landmarks[1].x, 14.5);
+	private_nh.param("gy1", landmarks[1].y, -3.5);
+	private_nh.param("gx2", landmarks[2].x, 15.0);
+	private_nh.param("gy2", landmarks[2].y, 10.0);
+	private_nh.param("gx3", landmarks[3].x, -18.0);
+	private_nh.param("gy3", landmarks[3].y, 11.5);
+	private_nh.param("gx4", landmarks[4].x, -18.5);
+	private_nh.param("gy4", landmarks[4].y, -2.3);
+	private_nh.param("gx5", landmarks[5].x, 0.0);
+	private_nh.param("gy5", landmarks[5].y, 0.0);
 
 
 	A_star as;
-	int count = 0;
+	int count = 1;
 	while(ros::ok())
 	{
 		if(map_received){
-			if(as.search_path()){
-				as.pub_path();
-				count++;
+			switch(count){
+				case 1:
+					if(as.search_path(landmarks[0].x, landmarks[0].y, landmarks[1].x, landmarks[1].y)){
+						as.pub_path();
+						count++;
+					}
+					break;
+				
+				case 2:
+					if(as.search_path(landmarks[1].x, landmarks[1].y, landmarks[2].x, landmarks[2].y)){
+						as.pub_path();
+						count++;
+					}
+					break;
+				case 3:
+					if(as.search_path(landmarks[2].x, landmarks[2].y, landmarks[3].x, landmarks[3].y)){
+						as.pub_path();
+						count++;
+					}
+					break;
+				case 4:
+					if(as.search_path(landmarks[3].x, landmarks[3].y, landmarks[4].x, landmarks[4].y)){
+						as.pub_path();
+						count++;
+					}
+
+					break;
+
+				case 5:
+					if(as.search_path(landmarks[4].x, landmarks[4].y, landmarks[5].x, landmarks[5].y)){
+						as.pub_path();
+						count++;
+					}
+					break;
+				case 6:
+					as.pub_path();
+					break;
+
+				default:
+					ROS_INFO("error");
 			}
 		}
-
     	ros::spinOnce();
     	loop_rate.sleep();
   	}
