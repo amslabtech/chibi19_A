@@ -215,8 +215,8 @@ include_directories(
 add_executable(dwa src/dwa.cpp)
 target_link_libraries(dwa ${catkin_LIBRARIES})
 
-add_executable(amcll src/amcll.cpp)
-target_link_libraries(amcll ${catkin_LIBRARIES})
+#add_executable(amcll src/amcll.cpp)
+#target_link_libraries(amcll ${catkin_LIBRARIES})
 
 add_executable(localization src/localization.cpp)
 target_link_libraries(localization ${catkin_LIBRARIES})
