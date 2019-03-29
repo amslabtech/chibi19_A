@@ -15,7 +15,6 @@ struct landmark{
 	double y;
 };
 
-
 struct Open{
 	int f;
 	int g;
@@ -74,7 +73,7 @@ void A_star::map_callback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
 {
 	if(map_received)
 		return;
-	ROS_INFO("map received");
+	//ROS_INFO("map received");
 	map = *msg;
 
 	map_row = map.info.height;
@@ -109,8 +108,8 @@ bool A_star::search_path(float ix, float iy, float gx, float gy)
 	goal[0] = floor((gx - map.info.origin.position.x) / map.info.resolution);
 	goal[1] = floor((gy - map.info.origin.position.y) / map.info.resolution);
 
-	ROS_INFO("start = (%d, %d)", init[0], init[1]);
-	ROS_INFO("goal = (%d, %d)", goal[0], goal[1]);
+	//ROS_INFO("start = (%d, %d)", init[0], init[1]);
+	//ROS_INFO("goal = (%d, %d)", goal[0], goal[1]);
 
 	get_heuristic(goal[0], goal[1]);
 
@@ -162,7 +161,7 @@ bool A_star::search_path(float ix, float iy, float gx, float gy)
 	while(!found && !resign){
 		if(!open.size()){
 			resign = true;
-			ROS_INFO("\nfail\n");
+			//ROS_INFO("\nfail\n");
 			return false;
 		} else {
 			std::sort(open.begin(), open.end(), [](const Open x, const Open y){
@@ -176,7 +175,7 @@ bool A_star::search_path(float ix, float iy, float gx, float gy)
 			f = next.f;
 			if(x == goal[0] && y == goal[1]){
 				found = true;
-				ROS_INFO("found");
+				//ROS_INFO("found");
 			} else {
 				for(int i = 0; i < delta.size(); i++){
 					x2 = x + delta[i][0];
@@ -203,7 +202,7 @@ bool A_star::search_path(float ix, float iy, float gx, float gy)
 			}
 		}
 	}
-	ROS_INFO("search completed");	
+	//ROS_INFO("search completed");	
 	x = goal[0];
 	y = goal[1];
 	std::vector<geometry_msgs::PoseStamped> tmp_poses;
@@ -230,7 +229,7 @@ bool A_star::search_path(float ix, float iy, float gx, float gy)
 
 	sampling_path();
 
-	ROS_INFO("set path");
+	//ROS_INFO("set path");
 	return true;
 }
 
@@ -266,7 +265,7 @@ void A_star::pub_path(void)
 {
 	//roomba_gpath_pub.publish(roomba_gpath);
 	roomba_gpath_pub.publish(samp_path);
-	ROS_INFO("publsh path");
+	//ROS_INFO("publsh path");
 }
 
 int main(int argc, char **argv)
