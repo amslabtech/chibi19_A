@@ -354,9 +354,9 @@ int main(int argc, char **argv)
   while (ros::ok())
   {
 	  if(dev){
-		normalized = is_normalized(roomba_odom.pose.pose.orientation);
+      normalized = is_normalized(roomba_odom.pose.pose.orientation);
 	  } else {
-		normalized = is_normalized(roomba_status.pose.orientation);
+      normalized = is_normalized(roomba_status.pose.orientation);
 	  }
 	  if(roomba_scan.ranges.size() && normalized){
 		if(dev) {
