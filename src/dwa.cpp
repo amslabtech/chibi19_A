@@ -19,11 +19,6 @@
 #define max_yawrate 1.00
 #define max_dyawrate 1.5
 #define robot_radius 0.17
-//#define predict_time 6.0
-//#define ob_cost_gain 1.00
-//#define speed_cost_gain 1.00
-//#define to_goal_cost_gain 0.000
-//#define dis_goal_cost_gain 0.010
 
 double predict_time;
 double ob_cost_gain;
@@ -277,7 +272,7 @@ Speed dwa_control(const Status& roomba, const nav_msgs::Path& gpath, const std::
         0.0 < y && y < exception_yawrate){
         continue;
       }
-      ROS_INFO("\n--------------------------------------------------------------------------------------------\nv = %lf\ny = %lf\n", v, y);
+      //ROS_INFO("\n--------------------------------------------------------------------------------------------\nv = %lf\ny = %lf\n", v, y);
 
       calc_trajectory(traj, v, y);
 
@@ -289,13 +284,13 @@ Speed dwa_control(const Status& roomba, const nav_msgs::Path& gpath, const std::
       final_cost = to_gpath_cost + speed_cost + ob_cost;
 
       //ROS_INFO("\nto_goal_cost = %lf\n\n", to_goal_cost);
-      ROS_INFO("\nto_gpath_cost = %lf\n\n", to_gpath_cost);
-      ROS_INFO("\nspeed_cost = %lf\n\n", speed_cost);
-      ROS_INFO("\nob_cost = %lf\n\n", ob_cost);
-      ROS_INFO("\nfinal_cost = %lf\n", final_cost);
-      ROS_INFO("\n---------------------------------------------------------------------\nnow min_cost = %lf\n", min_cost);
-      ROS_INFO("\nnow best_output.v = %lf\n", best_output.v);
-      ROS_INFO("\nnow best_output.omega = %lf\n-----------------------------------------------------------------\n", best_output.omega);
+      //ROS_INFO("\nto_gpath_cost = %lf\n\n", to_gpath_cost);
+      //ROS_INFO("\nspeed_cost = %lf\n\n", speed_cost);
+      //ROS_INFO("\nob_cost = %lf\n\n", ob_cost);
+      //ROS_INFO("\nfinal_cost = %lf\n", final_cost);
+      //ROS_INFO("\n---------------------------------------------------------------------\nnow min_cost = %lf\n", min_cost);
+      //ROS_INFO("\nnow best_output.v = %lf\n", best_output.v);
+      //ROS_INFO("\nnow best_output.omega = %lf\n-----------------------------------------------------------------\n", best_output.omega);
 
       if(min_cost > final_cost){
         min_cost = final_cost;
@@ -323,7 +318,7 @@ int is_goal(const Status& roomba, const Position& goal)
 
   if(dist <= robot_radius
   && yaw_error < yaw_tolerance){
-    ROS_INFO("\n\nGoal!!!\n\n");
+    //ROS_INFO("\n\nGoal!!!\n\n");
     return 0;
   } else {
     return 11;
@@ -336,7 +331,7 @@ bool is_normalized(const geometry_msgs::Quaternion& msg)
   tf::Quaternion bt = tf::Quaternion(msg.x, msg.y, msg.z, msg.w);
 
   if(fabs(bt.length2() - 1.0) > quaternion_tolerance){
-	ROS_INFO("\nunnormalized\n");
+	//ROS_INFO("\nunnormalized\n");
     return false;
   } else {
     return true;
@@ -372,7 +367,7 @@ int main(int argc, char **argv)
   ros::Subscriber roomba_scan_sub = n.subscribe("scan",1, scan_callback);
   ros::Subscriber roomba_gpath_sub = n.subscribe("gpath", 1, gpath_callback);
   ros::Subscriber roomba_status_sub = n.subscribe("amcl_pose", 1, amcl_callback);
-  ros::Rate loop_rate(10);
+  ros::Rate loop_rate(1);
 
   n.param("predict_time", predict_time, 5.0);
   n.param("ob_cost_gain", ob_cost_gain, 1.00);
@@ -390,7 +385,7 @@ int main(int argc, char **argv)
 
   bool dev = false;//dwaのみ試したいときにtrue
   bool normalized = false;
-  ROS_INFO("start");
+  //ROS_INFO("start");
 
   while (ros::ok())
   {
