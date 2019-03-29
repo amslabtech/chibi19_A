@@ -203,14 +203,14 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-add_executable(roomba_auto_test src/roomba_auto_test.cpp)
-target_link_libraries(roomba_auto_test ${catkin_LIBRARIES})
-
-add_executable(linear_test src/linear_test.cpp)
-target_link_libraries(linear_test ${catkin_LIBRARIES})
-
-add_executable(scan_test src/scan_test.cpp)
-target_link_libraries(scan_test ${catkin_LIBRARIES})
+#add_executable(roomba_auto_test src/roomba_auto_test.cpp)
+#target_link_libraries(roomba_auto_test ${catkin_LIBRARIES})
+#
+#add_executable(linear_test src/linear_test.cpp)
+#target_link_libraries(linear_test ${catkin_LIBRARIES})
+#
+#add_executable(scan_test src/scan_test.cpp)
+#target_link_libraries(scan_test ${catkin_LIBRARIES})
 
 add_executable(dwa src/dwa.cpp)
 target_link_libraries(dwa ${catkin_LIBRARIES})

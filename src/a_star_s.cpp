@@ -54,7 +54,7 @@ public:
 
 A_star::A_star(void)
 {
-	roomba_gpath_pub = nh.advertise<nav_msgs::Path>("dwa", 1);
+	roomba_gpath_pub = nh.advertise<nav_msgs::Path>("gpath", 1);
 	map_sub = nh.subscribe("map", 1, &A_star::map_callback,this);
 	roomba_status_sub = nh.subscribe("amcl_pose", 1, &A_star::amcl_callback, this);
 	roomba_gpath.header.frame_id = "map";	

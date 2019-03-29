@@ -1,0 +1,10 @@
+<launch>
+	<node pkg="chibi19_a" type="dwa" name="dwa">
+		<param name="predict_time" value="-1.0"/>
+		<param name="iy" value="5.0"/>
+		<param name="ob_cost_gain" value="1.00"/>
+		<param name="speed_cost_gain" value="1.00"/>
+		<param name="to_goal_cost_gain" value="0.01"/>
+		<param name="dis_goal_cost_gain" value="0.00"/>
+	</node>
+</launch>

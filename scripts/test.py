@@ -11,8 +11,8 @@ from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 
 
-#fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
-#video = cv2.VideoWriter('video.mp4', fourcc, 5.0, (640, 480))
+fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
+video = cv2.VideoWriter('video.mp4', fourcc, 5.0, (640, 480))
 
 class image_converter:
 
@@ -64,7 +64,7 @@ class image_converter:
    # cv_image3 = cv2.Laplacian(cv_image2, cv2.CV_32F)
    #cv2.imshow("Image window", cv_image2)
 
- #   video.write(cv_image)
+    video.write(cv_image)
 
     cv2.imshow("Image window1", thresh)
     cv2.imshow("Image window2", cv_image)
@@ -82,7 +82,7 @@ def main(args):
     rospy.spin()
   except KeyboardInterrupt:
     print("Shutting down")
-#  video.release()
+  video.release()
   cv2.destroyAllWindows()
 
 if __name__ == '__main__':
