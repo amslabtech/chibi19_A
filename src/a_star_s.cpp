@@ -247,7 +247,9 @@ void A_star::sampling_path(void)
 	
 	for(int i=0; i < path_size; i += step){
 		samp_path.poses.push_back(roomba_gpath.poses[i]);
-		dx = roomba_gpath.poses[i+step].pose.position.x - roomba_gpath.poses[i].pose.position.x;		dy = roomba_gpath.poses[i+step].pose.position.y - roomba_gpath.poses[i].pose.position.y;		theta = atan2(dy, dx);	
+		dx = roomba_gpath.poses[i+step].pose.position.x - roomba_gpath.poses[i].pose.position.x;
+		dy = roomba_gpath.poses[i+step].pose.position.y - roomba_gpath.poses[i].pose.position.y;
+		theta = atan2(dy, dx);
 		quaternionTFToMsg(tf::createQuaternionFromYaw(theta), samp_path.poses[j].pose.orientation);
 
 		j++;
