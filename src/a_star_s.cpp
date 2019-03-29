@@ -28,6 +28,7 @@ class A_star
 {
 private:
 	nav_msgs::Path roomba_gpath;
+	nav_msgs::Path samp_path;
 	geometry_msgs::PoseStamped roomba_status;
 	nav_msgs::OccupancyGrid map;
 	std::vector<std::vector<char> > grid;
@@ -50,6 +51,7 @@ public:
 	void get_heuristic(int, int);
 	bool search_path(float, float, float, float);
 	void pub_path(void);
+	void sampling_path(void);
 };
 
 A_star::A_star(void)
@@ -57,7 +59,11 @@ A_star::A_star(void)
 	roomba_gpath_pub = nh.advertise<nav_msgs::Path>("gpath", 1);
 	map_sub = nh.subscribe("map", 1, &A_star::map_callback,this);
 	roomba_status_sub = nh.subscribe("amcl_pose", 1, &A_star::amcl_callback, this);
-	roomba_gpath.header.frame_id = "map";	
+	roomba_gpath.header.frame_id = "map";
+	samp_path.header.frame_id = "map";
+
+	init.resize(2);
+	goal.resize(2);
 }
 
 void A_star::amcl_callback(const geometry_msgs::PoseStamped::ConstPtr& msg)
@@ -73,10 +79,6 @@ void A_star::map_callback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
 
 	map_row = map.info.height;
 	map_col = map.info.width;
-
-	init.resize(2);
-	goal.resize(2);
-
 	
 	grid = std::vector<std::vector<char> >(map_row, std::vector<char>(map_col, 0));
 	for(int row = 0; row < map_row; row++){
@@ -225,13 +227,43 @@ bool A_star::search_path(float ix, float iy, float gx, float gy)
 	}
 	std::reverse(tmp_poses.begin(), tmp_poses.end());
 	roomba_gpath.poses.insert(roomba_gpath.poses.end(), tmp_poses.begin(), tmp_poses.end());
+
+	sampling_path();
+
 	ROS_INFO("set path");
 	return true;
 }
 
+void A_star::sampling_path(void)
+{
+	samp_path.poses.clear();
+	geometry_msgs::PoseStamped path_end;
+	double dx;
+	double dy;
+	double theta;
+	int path_size = roomba_gpath.poses.size();
+	int step = 8; 
+	int j = 0;
+	
+	for(int i=0; i < path_size; i += step){
+		samp_path.poses.push_back(roomba_gpath.poses[i]);
+		dx = roomba_gpath.poses[i+step].pose.position.x - roomba_gpath.poses[i].pose.position.x;		dy = roomba_gpath.poses[i+step].pose.position.y - roomba_gpath.poses[i].pose.position.y;		theta = atan2(dy, dx);	
+		quaternionTFToMsg(tf::createQuaternionFromYaw(theta), samp_path.poses[j].pose.orientation);
+
+		j++;
+		if(i+step > path_size){
+
+			path_end = roomba_gpath.poses.back();
+			samp_path.poses.push_back(path_end);
+			samp_path.poses[j].pose.orientation = samp_path.poses[j-1].pose.orientation;
+		}
+	}
+}
+
 void A_star::pub_path(void)
 {
-	roomba_gpath_pub.publish(roomba_gpath);
+	//roomba_gpath_pub.publish(roomba_gpath);
+	roomba_gpath_pub.publish(samp_path);
 	ROS_INFO("publsh path");
 }
 
