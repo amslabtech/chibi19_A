@@ -52,7 +52,7 @@ private:
 };
 
 int map_index(int, int);
-int map_grid(int);
+int map_grid(double);
 bool map_valid(int, int);
 double normalize(double);
 double angle_diff(double, double);
@@ -64,9 +64,11 @@ void estimate_pose(void);
 void filter_update(void);
 
 nav_msgs::OccupancyGrid map;
+nav_msgs::OccupancyGrid dist;
 sensor_msgs::LaserScan laser;
 geometry_msgs::PoseStamped estimated_pose;
 geometry_msgs::PoseArray p_poses;
+geometry_msgs::PoseArray p_poses2;
 double *occ_dist;
 
 int N;
@@ -123,6 +125,8 @@ void laserCallback(const sensor_msgs::LaserScanConstPtr& msg)
 		for(int i=0; i < range_count; i++){
 			if(laser.ranges[i] <= laser.range_min){
 				laser.ranges[i] = laser.range_max;
+			}else if(std::isinf(laser.ranges[i])){
+				laser.ranges[i] = laser.range_max;
 			}
 		}
 	}
@@ -133,8 +137,8 @@ void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 	if(map_received){
 		return;
 	}
-	
 	map = *msg;
+	ROS_INFO("scale = %f", map.info.resolution);	
 
 	occ_dist = (double*)malloc(sizeof(double) * map.info.width * map.info.height);
 	
@@ -153,6 +157,19 @@ void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 	ROS_INFO("Initializing likelihood field");
 	map_update_cspace();
 	ROS_INFO("Set likelihood field");
+
+	for(int i=0; i< 4000; i++){
+		for(int j=0; j<4000; j++){
+			if(occ_dist[map_index(i,j)] <2.0){
+				dist.data[map_index(i,j)] = 50 * (2.0 -occ_dist[map_index(i,j)]);
+			}
+			else{
+				dist.data[map_index(i,j)] = 0;
+			}
+		}
+	}
+
+
 
 	map_received = true;
 
@@ -195,13 +212,28 @@ int main(int argc, char** argv)
 	y_cov = init_y_cov;
 	theta_cov = init_theta_cov;
 	p_poses.header.frame_id = "map";
+	p_poses2.header.frame_id = "map";
 	estimated_pose.header.frame_id = "map";
+	dist.header.frame_id = "map";
+
+	dist.header.stamp = ros::Time::now();
+	dist.info.resolution = 0.05;
+	dist.info.width = 4000;
+	dist.info.height = 4000;
+	dist.info.origin.position.x = -100.0;
+	dist.info.origin.position.y = -100.0;
+	dist.info.origin.position.z = 0.0;
+	dist.info.origin.orientation.w = 1.0;
+	dist.data.resize(4000*4000);
+
 	estimated_pose.pose.position.x = init_x;
 	estimated_pose.pose.position.y = init_y;
 	estimated_pose.pose.position.z = 0.0;
 	quaternionTFToMsg(tf::createQuaternionFromYaw(init_theta), estimated_pose.pose.orientation);	
 	ros::Publisher pose_pub = nh_.advertise<geometry_msgs::PoseStamped>("amcl_pose", 10);
 	ros::Publisher poses_pub = nh_.advertise<geometry_msgs::PoseArray>("particle", 10);
+	ros::Publisher poses_pub2 = nh_.advertise<geometry_msgs::PoseArray>("particle2", 10);
+	ros::Publisher dist_pub = nh_.advertise<nav_msgs::OccupancyGrid>("likelihood", 10);
 	ros::Subscriber laser_sub = nh_.subscribe("scan", 10, laserCallback);
 	ros::Subscriber map_sub = nh_.subscribe("map", 10, mapCallback);
 	
@@ -248,7 +280,7 @@ int main(int argc, char** argv)
 				filter_update();
 				//ROS_INFO("filter update");
 			}
-			ROS_INFO("x_cov = %f, y_cov = %f", x_cov, y_cov);
+			//ROS_INFO("x_cov = %f, y_cov = %f", x_cov, y_cov);
 	
 			for(int i=0; i < N; i++){
 				p_cloud[i].move(odom);
@@ -276,16 +308,24 @@ int main(int argc, char** argv)
 			estimated_pose.header.stamp = laser.header.stamp;
 			pose_pub.publish(estimated_pose);
 			//ROS_INFO("published estimated_pose");
-
+			p_poses.poses.clear();
+			p_poses2.poses.clear();
 			for(int i=0; i < N; i++){
 				geometry_msgs::Pose tmp_pose;
 				tmp_pose.position.x = p_cloud[i].p_data.x;
 				tmp_pose.position.y = p_cloud[i].p_data.y;
 				tmp_pose.position.z = 0.0;
 				quaternionTFToMsg(tf::createQuaternionFromYaw(p_cloud[i].p_data.theta), tmp_pose.orientation);
-				p_poses.poses[i] = tmp_pose;
+				if(p_cloud[i].w > 1.0/N){
+					p_poses.poses.push_back(tmp_pose);
+				}else{
+					p_poses2.poses.push_back(tmp_pose);
+				}
+
 			}
 			poses_pub.publish(p_poses);
+			poses_pub2.publish(p_poses2);
+			dist_pub.publish(dist);
 			try{
 				tf::Transform map_to_base;
 				quaternionMsgToTF(estimated_pose.pose.orientation, q);
@@ -330,7 +370,7 @@ int map_index(int i, int j)
 	return i + (map.info.width * j);
 }
 
-int map_grid(int x)
+int map_grid(double x)
 {
 	return floor((x - map.info.origin.position.x) / map.info.resolution + 0.5);
 }
@@ -534,18 +574,22 @@ void Particle::sense(void)
 		obs_range = laser.ranges[j];
 		obs_bearing = laser.angle_min + (laser.angle_increment * j);
 
+
 		if(obs_range >= laser.range_max)
 			continue;
 		if(obs_range != obs_range)//check for NaN
 			continue;
 
 		pz = 0.0;
-		
+
 		hit.x = p_data.x + obs_range * cos(p_data.theta + obs_bearing);//laserの端点
 		hit.y = p_data.y + obs_range * sin(p_data.theta + obs_bearing);
 
 		int mi = map_grid(hit.x);
 		int mj = map_grid(hit.y);
+		
+		double x = mi*0.05 - 100.0;
+		double y = mj*0.05 - 100.0;
 
 		if(!map_valid(mi, mj))//一番近い障害物までの距離を取得
 			z = laser_likelihood_max_dist;
