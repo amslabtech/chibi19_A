@@ -29,5 +29,6 @@
 		<param name="y_cov_thresh" value="0.10"/>
 		<param name="motion_update" value="0.1"/>
 		<param name="angle_update" value="0.1"/>
+		<param name="use_init_pose" value="false"/>
 	</node>
 </launch>
