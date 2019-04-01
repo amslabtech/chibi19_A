@@ -253,7 +253,6 @@ void A_star::sampling_path(void)
 
 		j++;
 		if(i+step > path_size){
-
 			path_end = roomba_gpath.poses.back();
 			samp_path.poses.push_back(path_end);
 			samp_path.poses[j].pose.orientation = samp_path.poses[j-1].pose.orientation;
