@@ -2,9 +2,9 @@
   <node pkg="chibi19_a" type="dwa" name="dwa">
     <param name="predict_time" value="3.0"/>
     <param name="l_ob_cost_gain" value="1.00"/>
-    <param name="speed_cost_gain" value="30.00"/>
-    <param name="to_g_goal_cost_gain" value="7.00"/>
-    <param name="dis_g_goal_cost_gain" value="1.00"/>
+    <param name="speed_cost_gain" value="2.50"/>
+    <param name="to_g_goal_cost_gain" value="0.00"/>
+    <param name="dis_g_goal_cost_gain" value="0.00"/>
     <param name="to_g_path_cost_gain" value="5.00"/>
     <param name="dis_g_path_cost_gain" value="5.00"/>
   </node>

@@ -17,16 +17,24 @@
 #define min_speed 0.0
 #define max_accel 5.0
 #define max_yawrate 1.00
-#define max_dyawrate 1.5
+#define max_dyawrate 2.0
 #define robot_radius 0.17
 
-double predict_time;
-double l_ob_cost_gain;
-double speed_cost_gain;
-double to_g_goal_cost_gain;
-double dis_g_goal_cost_gain;
-double to_g_path_cost_gain;
-double dis_g_path_cost_gain;
+#define predict_time 3.0
+#define l_ob_cost_gain 1.0
+#define speed_cost_gain 2.5
+#define to_g_goal_cost_gain 0.0
+#define dis_g_goal_cost_gain 0.0
+#define to_g_path_cost_gain 5.0
+#define dis_g_path_cost_gain 5.0
+
+//double predict_time;
+//double l_ob_cost_gain;
+//double speed_cost_gain;
+//double to_g_goal_cost_gain;
+//double dis_g_goal_cost_gain;
+//double to_g_path_cost_gain;
+//double dis_g_path_cost_gain;
 
 nav_msgs::Path roomba_gpath;
 nav_msgs::Odometry roomba_odom;
@@ -315,9 +323,9 @@ Speed dwa_control(const Status& g_roomba, const Position& g_goal, const std::vec
   dw = calc_dynamic_window(g_roomba);
   for(double v = dw.min_v; v <= dw.max_v; v += dv){
     for(double y = dw.min_omega; y <= dw.max_omega; y += dyaw){
-      if(-exception_omega < y && y < 0.0 
-      || 0.0 < y && y < exception_omega) continue;
-      //ROS_INFO("\n--------------------------------------------------------------------------------------------\nv = %lf\ny = %lf\n", v, y);
+      if((-exception_omega < y && y < 0.0)
+      || (0.0 < y && y < exception_omega)) continue;
+      ROS_INFO("\n--------------------------------------------------------------------------------------------\nv = %lf\ny = %lf\n", v, y);
 
       calc_l_traj(l_traj, v, y);
 
@@ -328,14 +336,14 @@ Speed dwa_control(const Status& g_roomba, const Position& g_goal, const std::vec
       final_cost = to_g_goal_cost + speed_cost + l_ob_cost;
       //final_cost = to_g_path_cost + speed_cost + l_ob_cost;
 
-      //ROS_INFO("\nto_goal_cost = %lf\n\n", to_g_goal_cost);
+      ROS_INFO("\nto_goal_cost = %lf\n\n", to_g_goal_cost);
       //ROS_INFO("\nto_gpath_cost = %lf\n\n", to_g_path_cost);
-      //ROS_INFO("\nspeed_cost = %lf\n\n", speed_cost);
-      //ROS_INFO("\nob_cost = %lf\n\n", l_ob_cost);
-      //ROS_INFO("\nfinal_cost = %lf\n", final_cost);
-      //ROS_INFO("\n---------------------------------------------------------------------\nnow min_cost = %lf\n", min_cost);
-      //ROS_INFO("\nnow best_output.v = %lf\n", best_output.v);
-      //ROS_INFO("\nnow best_output.omega = %lf\n-----------------------------------------------------------------\n", best_output.omega);
+      ROS_INFO("\nspeed_cost = %lf\n\n", speed_cost);
+      ROS_INFO("\nob_cost = %lf\n\n", l_ob_cost);
+      ROS_INFO("\nfinal_cost = %lf\n", final_cost);
+      ROS_INFO("\n---------------------------------------------------------------------\nnow min_cost = %lf\n", min_cost);
+      ROS_INFO("\nnow best_output.v = %lf\n", best_output.v);
+      ROS_INFO("\nnow best_output.omega = %lf\n-----------------------------------------------------------------\n", best_output.omega);
 
       if(min_cost > final_cost){
         min_cost = final_cost;
@@ -414,15 +422,15 @@ int main(int argc, char **argv)
   ros::Subscriber roomba_scan_sub = n.subscribe("scan",1, scan_callback);
   ros::Subscriber roomba_gpath_sub = n.subscribe("gpath", 1, gpath_callback);
   ros::Subscriber roomba_status_sub = n.subscribe("amcl_pose", 1, amcl_callback);
-  ros::Rate loop_rate(1);
+  ros::Rate loop_rate(4);
 
-  n.param("predict_time", predict_time, 5.0);
-  n.param("l_ob_cost_gain", l_ob_cost_gain, 1.00);
-  n.param("speed_cost_gain", speed_cost_gain, 1.00);
-  n.param("to_g_goal_cost_gain", to_g_goal_cost_gain, 0.01);
-  n.param("dis_g_goal_cost_gain", dis_g_goal_cost_gain, 0.00);
-  n.param("to_g_path_cost_gain", to_g_path_cost_gain, 0.01);
-  n.param("dis_g_path_cost_gain", dis_g_path_cost_gain, 1.00);
+  //n.param("predict_time", predict_time, 3.0);
+  //n.param("l_ob_cost_gain", l_ob_cost_gain, 1.00);
+  //n.param("speed_cost_gain", speed_cost_gain, 2.50);
+  //n.param("to_g_goal_cost_gain", to_g_goal_cost_gain, 0.00);
+  //n.param("dis_g_goal_cost_gain", dis_g_goal_cost_gain, 0.00);
+  //n.param("to_g_path_cost_gain", to_g_path_cost_gain, 1.00);
+  //n.param("dis_g_path_cost_gain", dis_g_path_cost_gain, 1.00);
 
   roomba_500driver_meiji::RoombaCtrl roomba_ctrl;
 
