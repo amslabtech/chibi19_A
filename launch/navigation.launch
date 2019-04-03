@@ -4,7 +4,7 @@
 
 	<node pkg="rviz" type="rviz" name="rviz" args="-d $(find chibi19_a)/config/rviz/navigation.rviz"/>
 
-	<node pkg="chibi19_a" type="a_star_s" name="a_star_s" >
+	<node pkg="chibi19_a" type="a_star" name="a_star">
 		<rosparam file="$(find chibi19_a)/config/param/globalpath.yaml" command="load" />
 	</node>
 
