@@ -20,9 +20,10 @@
 #define max_dyawrate 2.0
 #define robot_radius 0.17
 
-#define predict_time 3.0
+#define predict_time 2.0
 #define l_ob_cost_gain 1.0
-#define speed_cost_gain 2.5
+#define speed_cost_gain 2.7
+#define omega_cost_gain 0.0
 #define to_g_goal_cost_gain 0.0
 #define dis_g_goal_cost_gain 0.0
 #define to_g_path_cost_gain 5.0
@@ -31,6 +32,7 @@
 //double predict_time;
 //double l_ob_cost_gain;
 //double speed_cost_gain;
+//double omega_cost_gain;
 //double to_g_goal_cost_gain;
 //double dis_g_goal_cost_gain;
 //double to_g_path_cost_gain;
@@ -67,7 +69,7 @@ struct Dw{
   double max_omega;
 };
 
-double angle_range(double& t)
+double angle_range(const double& t)
 {
   double theta = 0.0;
 
@@ -75,6 +77,8 @@ double angle_range(double& t)
     theta = t - 2*M_PI;
   } else if(t < -M_PI){
     theta = t + 2*M_PI;
+  } else {
+    theta = t;
   }
 
   return theta;
@@ -88,7 +92,7 @@ double atan(const double& x, const double& y)
     if(!y){
       theta = 0.0;
     } else if(y < 0) {
-      theta = -1 * M_PI / 2;
+      theta = -M_PI / 2;
     } else if(y > 0) {
       theta = M_PI / 2;
     }
@@ -101,7 +105,7 @@ double atan(const double& x, const double& y)
 }
 
 //全部local
-Status motion(Status& r, const Speed& u)
+Status motion(const Status& r, const Speed& u)
 {
   Status roomba = {0.0, 0.0, 0.0, 0.0, 0.0};
 
@@ -187,45 +191,35 @@ double calc_to_g_goal_cost(const std::vector<Status>& l_traj, const Status& g_ro
 
   return to_g_goal_cost_gain * to_g_goal_theta + dis_g_goal_cost_gain * to_g_goal_dist;
 }
+
 double calc_to_g_path_cost(const std::vector<Status>& l_traj, const Status& g_roomba, const nav_msgs::Path& g_path)
 {
-  Status l_last = l_traj.back();
-  Position g_last = {0.0, 0.0, 0.0};
+  Position g_goal = {0.0, 0.0, 0.0};
   Position g_error = {0.0, 0.0, 0.0};
-  double l_last_r = 0.0;
-  double l_last_theta = 0.0;
-  double g_last_theta = 0.0;
-  double g_error_dist = 0.0;
-  double g_error_theta = 0.0;
-  double min_g_path_dist = 10000.0;
-  double min_g_path_theta = M_PI;
-
-  l_last_r = std::sqrt(l_last.x*l_last.x + l_last.y*l_last.y);
-  l_last_theta = atan(l_last.x, l_last.y);
-
-  g_last.x = g_roomba.x + l_last_r*std::cos(g_roomba.yaw + l_last_theta);
-  g_last.y = g_roomba.y + l_last_r*std::sin(g_roomba.yaw + l_last_theta);
-  g_last.yaw = g_roomba.yaw + l_last.yaw;
-  g_last_theta = atan(g_last.x, g_last.y);
+  int next_g_path_p_i = 0;
+  int n_g_path_p_d_i = 0;//nearest gpath point distance i
+  double n_g_path_p_d = 10000.0;//nearest gpath point distance
 
   for(int i = 0; i < g_path.poses.size(); i++){
-    g_error.x = g_path.poses[i].pose.position.x - g_last.x;
-    g_error.y = g_path.poses[i].pose.position.y - g_last.y;
+    g_error.x = g_path.poses[i].pose.position.x - g_roomba.x;
+    g_error.y = g_path.poses[i].pose.position.y - g_roomba.y;
     g_error_dist = std::sqrt(g_error.x*g_error.x + g_error.y*g_error.y);
-    g_error_theta = atan(g_error.x, g_error.y);
 
-    if(min_g_path_dist > g_error_dist){
-      min_g_path_dist = g_error_dist;
-      min_g_path_theta = g_error_theta;
+    if(n_g_path_p_d > g_error_dist){
+      n_g_path_p_d = g_error_dist;
+      n_g_path_p_d_i = i;
     }
   }
 
-  min_g_path_dist = min_g_path_dist;
-  min_g_path_theta= min_g_path_theta - g_last.yaw;
-  min_g_path_theta= angle_range(min_g_path_theta);
-  min_g_path_theta= std::fabs(min_g_path_theta);
-  
-  return to_g_path_cost_gain*min_g_path_theta + dis_g_path_cost_gain*min_g_path_dist;
+  //gpathが環状なら
+  next_g_path_p_i = (n_g_path_p_d_i + (int)predict_time) % g_path.poses.size();
+  g_goal.x = g_path.poses[next_g_path_p_i].pose.position.x;
+  g_goal.y = g_path.poses[next_g_path_p_i].pose.position.y;
+  g_goal.yaw = tf::getYaw(g_path.poses[next_g_path_p_i].pose.orientation);
+
+  to_g_path_cost = calc_to_g_goal_cost(l_traj, g_roomba, g_goal);
+
+  return to_g_path_cost;
 }
 
 //全部local
@@ -233,8 +227,9 @@ double calc_speed_cost(const std::vector<Status>& traj)
 {
   Status last = traj.back();
   double error_speed = max_speed - last.v;
+  double error_omega = std::fabs(last.omega); 
 
-  return speed_cost_gain * error_speed;
+  return speed_cost_gain*error_speed + omega_cost_gain*error_omega;
 }
 
 //全部local
@@ -257,8 +252,8 @@ double calc_l_ob_cost(const std::vector<Status>& traj, const std::vector<float>&
   double dist = 0.0;
   double inf = std::numeric_limits<double>::infinity();
   double min_dist = inf;
-  double left_rod_max = 1.60;
-  double left_rod_min = 0.90;
+  double left_rod_max = 1.70;
+  double left_rod_min = 0.80;
   double right_rod_max = -0.90;
   double right_rod_min = -1.60;
 
@@ -274,9 +269,16 @@ double calc_l_ob_cost(const std::vector<Status>& traj, const std::vector<float>&
     for(int j = 0; j < obstacle.size(); j += skip_j){
       if(( left_rod_min < ob_theta && ob_theta < left_rod_max) ||
          ( right_rod_min < ob_theta && ob_theta < right_rod_max)){
-          ob_theta += skip_j * roomba_scan.angle_increment;
-          continue;
+        ob_theta += skip_j * roomba_scan.angle_increment;
+        continue;
       }
+
+      //棒の場所判定用
+      //if(obstacle[j] < robot_radius){
+      //  ROS_INFO("ob[j] = %f\nob_theta = %lf\n", obstabcle[j], ob_theta);
+      //  ob_theta += skip_j * roomba_scan.angle_increment;
+      //  continue;
+      //}
 
       if(obstacle[j] < 60.0){
         ob = obstacle[j];
@@ -427,6 +429,7 @@ int main(int argc, char **argv)
   //n.param("predict_time", predict_time, 3.0);
   //n.param("l_ob_cost_gain", l_ob_cost_gain, 1.00);
   //n.param("speed_cost_gain", speed_cost_gain, 2.50);
+  //n.param("omega_cost_gain", omega_cost_gain, 0.00);
   //n.param("to_g_goal_cost_gain", to_g_goal_cost_gain, 0.00);
   //n.param("dis_g_goal_cost_gain", dis_g_goal_cost_gain, 0.00);
   //n.param("to_g_path_cost_gain", to_g_path_cost_gain, 1.00);
