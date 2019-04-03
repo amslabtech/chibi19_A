@@ -2,61 +2,18 @@
 	<arg name="map_file" default="$(find chibi19_a)/map_data/a19map2.yaml"/>
 	<node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
 
-	<node pkg="rviz" type="rviz" name="rviz" args="-d $(find chibi19_a)/config/navigation.rviz"/>
+	<node pkg="rviz" type="rviz" name="rviz" args="-d $(find chibi19_a)/config/rviz/navigation.rviz"/>
 
-	<node pkg="chibi19_a" type="a_star_s" name="a_star_s" output="screen" >
-		<param name="ix" value="-1.0"/>
-		<param name="iy" value="-3.0"/>
-		<param name="gx1" value="14.5"/>
-		<param name="gy1" value="-3.5"/>
-		<param name="gx2" value="15"/>
-		<param name="gy2" value="10"/>
-		<param name="gx3" value="-1.0"/>
-		<param name="gy3" value="10.5"/>
-		<param name="gx4" value="-18.0"/>
-		<param name="gy4" value="11.5"/>
-		<param name="gx5" value="-18.5"/>
-		<param name="gy5" value="-2.3"/>
-		<param name="gx6" value="-1.0"/>
-		<param name="gy6" value="-3.0"/>
+	<node pkg="chibi19_a" type="a_star_s" name="a_star_s" >
+		<rosparam file="$(find chibi19_a)/config/param/globalpath.yaml" command="load" />
 	</node>
 
-	<node pkg="chibi19_a" type="localization" name="localization" output="screen" >
-		<param name="N" value="500"/>
-		<param name="alpha1" value="0.2"/>
-		<param name="alpha2" value="0.2"/>
-		<param name="alpha3" value="0.6"/>
-		<param name="alpha4" value="0.2"/>
-		<param name="z_hit" value="0.7"/>
-		<param name="z_rand" value="0.3"/>
-		<param name="sigma_hit" value="0.3"/>
-		<param name="laser_likelihood_max_dist" value="2.0"/>
-		<param name="alpha_slow" value="0.0015"/>
-		<param name="alpha_fast" value="0.1"/>
-		<param name="max_beam" value="90"/>
-		<param name="MAX_RANGE" value="29"/>
-		<param name="MIN_RANGE" value="0.01"/>
-		<param name="init_x" value="-1.0"/>
-		<param name="init_y" value="-3.3"/>
-		<param name="init_theta" value="-0.3"/>
-		<param name="init_x_cov" value="0.3"/>
-		<param name="init_y_cov" value="0.3"/>
-		<param name="init_theta_cov" value="0.2"/>
-		<param name="x_cov_thresh" value="0.10"/>
-		<param name="y_cov_thresh" value="0.10"/>
-		<param name="motion_update" value="0.1"/>
-		<param name="angle_update" value="0.1"/>
+	<node pkg="chibi19_a" type="localization" name="localization" >
+		<rosparam file="$(find chibi19_a)/config/param/localization.yaml" command="load" />
 	</node>
 
 	<node pkg="chibi19_a" type="dwa" name="dwa">
-		<param name="predict_time" value="-1.0"/>
-		<param name="iy" value="5.0"/>
-		<param name="ob_cost_gain" value="1.00"/>
-		<param name="speed_cost_gain" value="1.00"/>
-		<param name="to_goal_cost_gain" value="0.01"/>
-		<param name="dis_goal_cost_gain" value="0.00"/>
-		<param name="to_gpath_cost_gain" value="0.01"/>
-		<param name="dis_gpath_cost_gain" value="1.00"/>
+		<rosparam file="$(find chibi19_a)/config/param/localization.yaml" command="load" />
 	</node>
 </launch>
 

@@ -1,0 +1,11 @@
+<launch>
+	<arg name="map_file" default="$(find chibi19_a)/map_data/a19map2.yaml"/>
+	<node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
+
+	<node pkg="rviz" type="rviz" name="rviz" args="-d $(find chibi19_a)/config/rviz/global_path.rviz"/>
+
+	<node pkg="chibi19_a" type="a_star_s" name="a_star_s" output="screen" >
+		<rosparam file="$(find chibi19_a)/config/param/globalpath.yaml" command="load" />
+	</node>
+</launch>
+

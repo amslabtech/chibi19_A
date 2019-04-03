@@ -126,8 +126,6 @@ void LaserCallback(const sensor_msgs::LaserScanConstPtr& msg)
 		for(int i=0; i < range_count; i++){
 			if(laser.ranges[i] <= laser.range_min){
 				laser.ranges[i] = laser.range_max;
-			}else if(std::isinf(laser.ranges[i])){
-				laser.ranges[i] = laser.range_max;
 			}
 		}
 	}
@@ -189,7 +187,7 @@ void InitPoseCallback(const geometry_msgs::PoseWithCovarianceStampedConstPtr& ms
 
 	if(init_set)
 		return;
-	ROS_INFO("init callback");
+	//ROS_INFO("init callback");
 	init_pose = *msg;
 	
 	for(int i=0; i < N; i++){
@@ -239,11 +237,11 @@ int main(int argc, char** argv)
 	private_nh_.getParam("angle_update", angle_update);
 	private_nh_.getParam("use_init_pose", use_init_pose);
 
-
 	srand((unsigned int)time(NULL));
 	x_cov = init_x_cov;
 	y_cov = init_y_cov;
 	theta_cov = init_theta_cov;
+
 	p_poses.header.frame_id = "map";
 	estimated_pose.header.frame_id = "map";
 	dist.header.frame_id = "map";
@@ -253,6 +251,7 @@ int main(int argc, char** argv)
 	estimated_pose.pose.position.y = init_y;
 	estimated_pose.pose.position.z = 0.0;
 	quaternionTFToMsg(tf::createQuaternionFromYaw(init_theta), estimated_pose.pose.orientation);	
+
 	ros::Publisher pose_pub = nh_.advertise<geometry_msgs::PoseStamped>("amcl_pose", 10);
 	ros::Publisher poses_pub = nh_.advertise<geometry_msgs::PoseArray>("particle", 10);
 	ros::Publisher dist_pub = nh_.advertise<nav_msgs::OccupancyGrid>("likelihood", 10);
@@ -282,8 +281,7 @@ int main(int argc, char** argv)
 				listener.lookupTransform("odom", "base_link",now,latest_transform);
 			}
 			catch(tf::TransformException &ex){
-				//ROS_ERROR("%s", ex.what());
-				ROS_INFO("1111111");
+				ROS_ERROR("%s", ex.what());
 			}
 			odom.pose.x = latest_transform.getOrigin().x();
 			odom.pose.y = latest_transform.getOrigin().y();
@@ -342,7 +340,7 @@ int main(int argc, char** argv)
 
 			}
 			poses_pub.publish(p_poses);
-			dist_pub.publish(dist);
+		//	dist_pub.publish(dist);
 			try{
 				tf::Transform map_to_base;
 				quaternionMsgToTF(estimated_pose.pose.orientation, q);
@@ -367,8 +365,7 @@ int main(int argc, char** argv)
 				map_br.sendTransform(map_to_odom);
 			}
 			catch(tf::TransformException &ex){
-				//ROS_ERROR("%s", ex.what());
-				ROS_INFO("----");
+				ROS_ERROR("%s", ex.what());
 			}
 
 

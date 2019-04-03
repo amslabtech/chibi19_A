@@ -5,15 +5,16 @@ import roslib
 import sys
 import rospy
 import cv2
-from std_msgs.msg import String
+from std_msgs.msg import String, Bool
 from sensor_msgs.msg import Image
-from cv_bridge import CvBridge, CvBridgeError
+from cv_bridge import CvBridge
 import numpy as np
 
 class image_converter:
 
   def __init__(self):
     self.detection_pub = rospy.Publisher("line_detection",String)
+    #self.detection_pub = rospy.Publisher("line_detection",Bool)
 
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/usb_cam/image_raw",Image,self.callback)
@@ -48,10 +49,8 @@ class image_converter:
                 #print(areas[i])
                 #print(float(w) / h)
                 
-                try:
-                    self.detection_pub.publish("aaa")
-                except CvBridgeError as e:
-                    print(e)
+                self.detection_pub.publish("aaa")
+                #self.detection_pub.publish(True)
 
     cv2.imshow("Image window1", thresh)
     cv2.imshow("Image window2", cv_image)

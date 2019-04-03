@@ -11,8 +11,8 @@ from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 
 
-fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
-video = cv2.VideoWriter('video.mp4', fourcc, 5.0, (640, 480))
+#fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
+#video = cv2.VideoWriter('video.mp4', fourcc, 5.0, (640, 480))
 
 class image_converter:
 
@@ -27,7 +27,10 @@ class image_converter:
       cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
     except CvBridgeError as e:
       print(e)
-    
+
+
+    cv2.imwrite("original.png", cv_image)
+
     gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
     cv_image2 = cv2.GaussianBlur(gray_image,(3,3),0)
     for i in range(2):
@@ -54,7 +57,7 @@ class image_converter:
             if ((float(w) / h) < 0.2) and areas[i] > 10000:
               cv_image = cv2.drawContours(cv_image,[boxs[i]],0,(0,0,255),2)
               #print(areas[i])
-              print(float(w) / h)
+              #print(float(w) / h)
 
  #   cv_image = cv2.drawContours(cv_image,boxs,-1,(0,0,255),2)
 
@@ -64,10 +67,17 @@ class image_converter:
    # cv_image3 = cv2.Laplacian(cv_image2, cv2.CV_32F)
    #cv2.imshow("Image window", cv_image2)
 
-    video.write(cv_image)
+   # video.write(cv_image)
 
-    cv2.imshow("Image window1", thresh)
-    cv2.imshow("Image window2", cv_image)
+    #cv2.imshow("Image window1", thresh)
+    #cv2.imshow("Image window2", cv_image)
+
+    #cv2.imwrite("original.png", original)
+    cv2.imwrite("glay.png", gray_image)
+    cv2.imwrite("blur.png", cv_image2)
+    cv2.imwrite("thresh.png", thresh)
+    cv2.imwrite("detection.png", cv_image)
+
     cv2.waitKey(3)
 
     try:
@@ -82,7 +92,7 @@ def main(args):
     rospy.spin()
   except KeyboardInterrupt:
     print("Shutting down")
-  video.release()
+  #video.release()
   cv2.destroyAllWindows()
 
 if __name__ == '__main__':
