@@ -109,7 +109,7 @@ void motion(Status& roomba, const Speed& u)
   roomba.omega = u.omega;
 }
 
-Dw calc_dynamic_window(const Status& roomba)
+void calc_dynamic_window(Dw dw, const Status& roomba)
 {
   const Dw Vs= {
      min_speed,
@@ -123,14 +123,11 @@ Dw calc_dynamic_window(const Status& roomba)
     roomba.omega - max_dyawrate * dt,
     roomba.omega + max_dyawrate * dt
   };
-  Dw dw = {
-    std::max(Vs.min_v, Vd.min_v),
-    std::min(Vs.max_v, Vd.max_v),
-    std::max(Vs.min_omega, Vd.min_omega),
-    std::min(Vs.max_omega, Vd.max_omega)
-  };
-  
-  return dw;
+
+  dw.min_v = std::max(Vs.min_v, Vd.min_v);
+  dw.max_v = std::min(Vs.max_v, Vd.max_v);
+  dw.min_omega = std::max(Vs.min_omega, Vd.min_omega);
+  dw.max_omega = std::min(Vs.max_omega, Vd.max_omega);
 }
 
 //全部local
@@ -236,6 +233,7 @@ double calc_l_ob_cost(const std::vector<Status>& traj, const std::vector<float>&
   double r = 0.0;
   double rr = 0.0;
   double ob = 0.0;
+  double past_ob = 0.0;
   double obob = 0.0;
   double rob = 0.0;
   double theta = 0.0;
@@ -257,14 +255,23 @@ double calc_l_ob_cost(const std::vector<Status>& traj, const std::vector<float>&
     r = std::sqrt(xx+yy);
     theta = atan(x, y);
     ob_theta = roomba_scan.angle_min;
+    past_ob = obstacle[0];
 
     for(int j = 0; j < obstacle.size(); j += skip_j){
       if(( left_rod_min < ob_theta && ob_theta < left_rod_max)
-		|| ( right_rod_min < ob_theta && ob_theta < right_rod_max)){
-        ob_theta += skip_j * roomba_scan.angle_increment;
-        continue;
-	  }
-
+      || ( right_rod_min < ob_theta && ob_theta < right_rod_max)){
+        ob = past_ob;
+        //ob_theta += skip_j * roomba_scan.angle_increment;
+        //continue;
+      } else {
+        if(obstacle[j] < 60.0){
+          ob = obstacle[j];
+          past_ob = ob;
+        } else {
+          ob = 60.0;
+          past_ob = ob;
+        }
+      }
 
       //棒の場所判定用
       //if(obstacle[j] < robot_radius){
@@ -272,12 +279,6 @@ double calc_l_ob_cost(const std::vector<Status>& traj, const std::vector<float>&
       //  ob_theta += skip_j * roomba_scan.angle_increment;
       //  continue;
       //}
-
-	  if(obstacle[j] < 60.0){
-		ob = obstacle[j];
-	  } else {
-		ob = 60.0;
-	  }
 
       //極座標での２点間の距離を調べる
       rr = r*r;
@@ -315,7 +316,7 @@ Speed dwa_control(const Status& g_roomba, const Position& g_goal, const std::vec
   double exception_omega = max_yawrate * 0.09;
   std::vector<Status> l_traj;
 
-  dw = calc_dynamic_window(g_roomba);
+  calc_dynamic_window(dw, g_roomba);
   for(double v = dw.min_v; v <= dw.max_v; v += dv){
     for(double y = dw.min_omega; y <= dw.max_omega; y += dyaw){
       if((-exception_omega < y && y < 0.0)
@@ -331,14 +332,14 @@ Speed dwa_control(const Status& g_roomba, const Position& g_goal, const std::vec
       final_cost = to_g_goal_cost + speed_cost + l_ob_cost;
       //final_cost = to_g_path_cost + speed_cost + l_ob_cost;
 
-      ROS_INFO("\nto_goal_cost = %lf\n\n", to_g_goal_cost);
-      //ROS_INFO("\nto_gpath_cost = %lf\n\n", to_g_path_cost);
-      ROS_INFO("\nspeed_cost = %lf\n\n", speed_cost);
-      ROS_INFO("\nob_cost = %lf\n\n", l_ob_cost);
-      ROS_INFO("\nfinal_cost = %lf\n", final_cost);
-      ROS_INFO("\n---------------------------------------------------------------------\nnow min_cost = %lf\n", min_cost);
-      ROS_INFO("\nnow best_output.v = %lf\n", best_output.v);
-      ROS_INFO("\nnow best_output.omega = %lf\n-----------------------------------------------------------------\n", best_output.omega);
+      //ROS_INFO("\nto_goal_cost = %lf\n\n", to_g_goal_cost);
+      ////ROS_INFO("\nto_gpath_cost = %lf\n\n", to_g_path_cost);
+      //ROS_INFO("\nspeed_cost = %lf\n\n", speed_cost);
+      //ROS_INFO("\nob_cost = %lf\n\n", l_ob_cost);
+      //ROS_INFO("\nfinal_cost = %lf\n", final_cost);
+      //ROS_INFO("\n---------------------------------------------------------------------\nnow min_cost = %lf\n", min_cost);
+      //ROS_INFO("\nnow best_output.v = %lf\n", best_output.v);
+      //ROS_INFO("\nnow best_output.omega = %lf\n-----------------------------------------------------------------\n", best_output.omega);
 
       if(min_cost > final_cost){
         min_cost = final_cost;
