@@ -26,8 +26,8 @@
 #define omega_cost_gain 0.0
 #define to_g_goal_cost_gain 0.0
 #define dis_g_goal_cost_gain 0.0
-#define to_g_path_cost_gain 5.0
-#define dis_g_path_cost_gain 5.0
+//#define to_g_path_cost_gain 5.0
+//#define dis_g_path_cost_gain 5.0
 
 //double predict_time;
 //double l_ob_cost_gain;
@@ -199,6 +199,8 @@ double calc_to_g_path_cost(const std::vector<Status>& l_traj, const Status& g_ro
   int next_g_path_p_i = 0;
   int n_g_path_p_d_i = 0;//nearest gpath point distance i
   double n_g_path_p_d = 10000.0;//nearest gpath point distance
+  double g_error_dist = 0.0;
+  double to_g_path_cost = 0.0;
 
   for(int i = 0; i < g_path.poses.size(); i++){
     g_error.x = g_path.poses[i].pose.position.x - g_roomba.x;
