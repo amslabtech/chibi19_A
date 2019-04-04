@@ -17,12 +17,12 @@
 #define min_speed 0.0
 #define max_accel 5.0
 #define max_yawrate 1.00
-#define max_dyawrate 2.0
+#define max_dyawrate 5.0
 #define robot_radius 0.17
 
-#define predict_time 2.0
+#define predict_time 5.0
 #define l_ob_cost_gain 1.0
-#define speed_cost_gain 2.7
+#define speed_cost_gain 1.0
 #define omega_cost_gain 0.0
 #define to_g_goal_cost_gain 0.0
 #define dis_g_goal_cost_gain 0.0
@@ -69,19 +69,13 @@ struct Dw{
   double max_omega;
 };
 
-double angle_range(const double& t)
+void angle_range(double& theta)
 {
-  double theta = 0.0;
-
-  if(t > M_PI){
-    theta = t - 2*M_PI;
-  } else if(t < -M_PI){
-    theta = t + 2*M_PI;
-  } else {
-    theta = t;
+  if(theta > M_PI){
+    theta -= 2*M_PI;
+  } else if(theta < -M_PI){
+    theta += 2*M_PI;
   }
-
-  return theta;
 }
 
 double atan(const double& x, const double& y)
@@ -98,25 +92,21 @@ double atan(const double& x, const double& y)
     }
   } else {
     theta = std::atan2(y, x);
-    theta = angle_range(theta);
+    angle_range(theta);
   }
 
   return theta;
 }
 
 //全部local
-Status motion(const Status& r, const Speed& u)
+void motion(Status& roomba, const Speed& u)
 {
-  Status roomba = {0.0, 0.0, 0.0, 0.0, 0.0};
-
-  roomba.yaw = r.yaw + u.omega * dt;
-  roomba.yaw = angle_range(roomba.yaw);
-  roomba.x = r.x + u.v * std::cos(roomba.yaw) * dt;
-  roomba.y = r.y + u.v * std::sin(roomba.yaw) * dt;
+  roomba.yaw += u.omega * dt;
+  angle_range(roomba.yaw);
+  roomba.x += u.v * std::cos(roomba.yaw) * dt;
+  roomba.y += u.v * std::sin(roomba.yaw) * dt;
   roomba.v = u.v;
   roomba.omega = u.omega;
-
-  return roomba;
 }
 
 Dw calc_dynamic_window(const Status& roomba)
@@ -152,7 +142,7 @@ void calc_l_traj(std::vector<Status>& traj, const double& v, const double& y)
   traj.erase(traj.begin(), traj.end());
   for(double t = 0.0; t < predict_time; t += dt){
     traj.push_back(roomba);
-    roomba = motion(roomba, u);
+    motion(roomba, u);
   }
   traj.push_back(roomba);
 }
@@ -186,7 +176,7 @@ double calc_to_g_goal_cost(const std::vector<Status>& l_traj, const Status& g_ro
 
   to_g_goal_dist = g_error.x;
   to_g_goal_theta = g_error_theta - g_last.yaw;
-  to_g_goal_theta = angle_range(to_g_goal_theta);
+  angle_range(to_g_goal_theta);
   to_g_goal_theta = std::fabs(to_g_goal_theta);
 
   return to_g_goal_cost_gain * to_g_goal_theta + dis_g_goal_cost_gain * to_g_goal_dist;
@@ -254,8 +244,8 @@ double calc_l_ob_cost(const std::vector<Status>& traj, const std::vector<float>&
   double dist = 0.0;
   double inf = std::numeric_limits<double>::infinity();
   double min_dist = inf;
-  double left_rod_max = 1.70;
-  double left_rod_min = 0.80;
+  double left_rod_max = 1.60;
+  double left_rod_min = 0.90;
   double right_rod_max = -0.90;
   double right_rod_min = -1.60;
 
@@ -269,11 +259,12 @@ double calc_l_ob_cost(const std::vector<Status>& traj, const std::vector<float>&
     ob_theta = roomba_scan.angle_min;
 
     for(int j = 0; j < obstacle.size(); j += skip_j){
-      if(( left_rod_min < ob_theta && ob_theta < left_rod_max) ||
-         ( right_rod_min < ob_theta && ob_theta < right_rod_max)){
+      if(( left_rod_min < ob_theta && ob_theta < left_rod_max)
+		|| ( right_rod_min < ob_theta && ob_theta < right_rod_max)){
         ob_theta += skip_j * roomba_scan.angle_increment;
         continue;
-      }
+	  }
+
 
       //棒の場所判定用
       //if(obstacle[j] < robot_radius){
@@ -282,11 +273,11 @@ double calc_l_ob_cost(const std::vector<Status>& traj, const std::vector<float>&
       //  continue;
       //}
 
-      if(obstacle[j] < 60.0){
-        ob = obstacle[j];
-      } else {
-        ob = 60.0;
-      }
+	  if(obstacle[j] < 60.0){
+		ob = obstacle[j];
+	  } else {
+		ob = 60.0;
+	  }
 
       //極座標での２点間の距離を調べる
       rr = r*r;
