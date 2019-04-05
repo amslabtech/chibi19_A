@@ -30,6 +30,16 @@
 //#define to_g_path_cost_gain 5.0
 //#define dis_g_path_cost_gain 5.0
 
+//double dt;
+//double dv;
+//double dyaw;
+//double max_speed;
+//double min_speed;
+//double max_accel;
+//double max_yawrate;
+//double min_yawrate;
+//double max_dyawrate;
+//double robot_radius;
 //double predict_time;
 //double l_ob_cost_gain;
 //double speed_cost_gain;
@@ -414,22 +424,34 @@ int main(int argc, char **argv)
 {
   ros::init(argc, argv, "dwa");
   ros::NodeHandle n;
+  ros::NodeHandle pre_n("~");
   ros::Publisher roomba_ctrl_pub = n.advertise<roomba_500driver_meiji::RoombaCtrl>("roomba/control", 1);
   ros::Subscriber roomba_odom_sub = n.subscribe("roomba/odometry", 1, odom_callback);
   ros::Subscriber roomba_scan_sub = n.subscribe("scan",1, scan_callback);
   ros::Subscriber roomba_gpath_sub = n.subscribe("gpath", 1, gpath_callback);
   ros::Subscriber roomba_status_sub = n.subscribe("amcl_pose", 1, amcl_callback);
   ros::Rate loop_rate(4);
-
-  //n.param("predict_time", predict_time, 3.0);
-  //n.param("l_ob_cost_gain", l_ob_cost_gain, 1.00);
-  //n.param("speed_cost_gain", speed_cost_gain, 2.50);
-  //n.param("omega_cost_gain", omega_cost_gain, 0.00);
-  //n.param("to_g_goal_cost_gain", to_g_goal_cost_gain, 0.00);
-  //n.param("dis_g_goal_cost_gain", dis_g_goal_cost_gain, 0.00);
-  //n.param("to_g_path_cost_gain", to_g_path_cost_gain, 1.00);
-  //n.param("dis_g_path_cost_gain", dis_g_path_cost_gain, 1.00);
-
+/*
+  pre_n.param("dt", dt, 0.3);
+  pre_n.param("dv", dv, 0.01);
+  pre_n.param("dyaw", dyaw, 0.01);
+  pre_n.param("max_speed", max_speed, 0.42);
+  pre_n.param("min_speed", min_speed, 0.0);
+  pre_n.param("max_accel", max_accel, 5.0);
+  pre_n.param("max_yawrate", max_yawrate, 1.00);
+  pre_n.param("min_yawrate", min_yawrate, -1.00);
+  pre_n.param("max_dyawrate", max_dyawrate, 5.0);
+  pre_n.param("min_dyawrate", min_dyawrate, 0.17);
+  pre_n.param("robot_radius", robot_radius, 3.0);
+  pre_n.param("predict_time", predict_time, 1.0);
+  pre_n.param("l_ob_cost_gain", l_ob_cost_gain, 1.0);
+  pre_n.param("speed_cost_gain", speed_cost_gain, 1.0);
+  pre_n.param("omega_cost_gain", omega_cost_gain, 0.0);
+  pre_n.param("to_g_goal_cost_gain", to_g_goal_cost_gain, 0.0);
+  pre_n.param("dis_g_goal_cost_gain", dis_g_goal_cost_gain, 0.0);
+  pre_n.param("to_g_path_cost_gain", to_g_path_cost_gain, 0.0);
+  pre_n.param("dis_g_path_cost_gain", dis_g_path_cost_gain, 0.0);
+*/
   roomba_500driver_meiji::RoombaCtrl roomba_ctrl;
 
   Speed output = {0.0, 0.0};

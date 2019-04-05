@@ -1,5 +1,5 @@
 <launch>
-	<node pkg="chibi19_a" type="dwa" name="dwa">
+	<node pkg="chibi19_a" type="dwa" name="dwa" output="screen">
 		<rosparam file="$(find chibi19_a)/config/param/localization.yaml" command="load" />
 	</node>
 </launch>
