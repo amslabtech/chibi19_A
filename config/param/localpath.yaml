@@ -1,13 +1,15 @@
-dt: 0.3
+dt: 0.1
 dv: 0.01
 dyaw: 0.01
-max_speed: 0.42
+max_speed: 0.40
 min_speed: 0.0
-max_accel: 5.0
-max_yawrate: 1.00
-min_yawrate: -1.00
-max_dyawrate: 5.0
+max_accel: 2.0
+max_yawrate: 0.87
+min_yawrate: -0.87
+max_dyawrate: 2.0
 robot_radius: 0.17
+limit_speed: 0.20
+limit_yawrate: 0.20
 
 predict_time: 3.0
 l_ob_cost_gain: 1.0
