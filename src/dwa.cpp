@@ -13,15 +13,15 @@
 #define dt 0.1
 #define dv 0.01
 #define dyaw 0.01
-#define max_speed 0.46
+#define max_speed 0.40
 #define min_speed 0.0
 #define max_accel 2.0
-//#define min_yawrate -1.00
-#define max_yawrate 1.00
+//#define min_yawrate -0.87
+#define max_yawrate 0.87
 #define max_dyawrate 2.0
-#define robot_radius 0.17
-#define limit_speed 0.25
-#define limit_yawrate 0.40
+#define roomba_radius 0.17
+#define limit_speed 0.20
+#define limit_yawrate 0.20
 
 #define predict_time 3.0
 #define l_ob_cost_gain 1.0
@@ -45,6 +45,9 @@ nav_msgs::Path roomba_gpath;
 nav_msgs::Odometry roomba_odom;
 sensor_msgs::LaserScan roomba_scan;
 geometry_msgs::PoseStamped roomba_status;
+
+bool get_pose = false;
+bool get_gpath = false;
 
 struct Speed{
   double v;
@@ -114,53 +117,54 @@ void motion(Status& roomba, const double& v, const double& y)
   return;
 }
 
-void calc_dynamic_window_omega(Dw& dw, const Status& roomba, const double& v)
-{
-  const Dw Vs= {
-   min_speed,
-   limit_speed,
-   -limit_yawrate,
-   limit_yawrate
-  };
-  Dw Vd = {
-    0.0,//roomba.v - max_accel * dt,
-    0.0,//roomba.v + max_accel * dt,
-    roomba.omega - max_dyawrate * dt,
-    roomba.omega + max_dyawrate * dt
-  };
-  double min_omega = std::max(Vs.min_omega, Vd.min_omega);
-  double max_omega = std::min(Vs.max_omega, Vd.max_omega);
-  double can_omega_max = v / roomba_radius;
-  double can_omega_min = -can_omega_max;
-
-  dw.min_omega = std::max(can_omega_min, min_omega);
-  dw.max_omega = std::min(can_omega_max, max_omega);
-  return;
-}
-
+/*
 void calc_dynamic_window_v(Dw& dw, const Status& roomba)
 {
   const Dw Vs= {
    min_speed,
-   limit_speed,
-   -limit_yawrate,
-   limit_yawrate
+   max_speed,//limit_speed,
+   min_yawrate,//-limit_yawrate,
+   max_yawrate//limit_yawrate
   };
   Dw Vd = {
     roomba.v - max_accel * dt,
     roomba.v + max_accel * dt,
-    0.0,//roomba.omega - max_dyawrate * dt,
-    0.0//roomba.omega + max_dyawrate * dt
+    0.0,
+    0.0
   };
 
   dw.min_v = std::max(Vs.min_v, Vd.min_v);
   dw.max_v = std::min(Vs.max_v, Vd.max_v);
-  dw.min_omega = 0.0;
-  dw.max_omega = 0.0;
   return;
 }
 
-/*
+void calc_dynamic_window_omega(Dw& dw, const Status& roomba, const double& v)
+{
+  const Dw Vs= {
+   min_speed,
+   max_speed,
+   min_yawrate,
+   max_yawrate
+  };
+  Dw Vd = {
+    0.0,
+    0.0,
+    roomba.omega - max_dyawrate * dt,
+    roomba.omega + max_dyawrate * dt
+  };
+  double min_omega = std::max(Vs.min_omega, Vd.min_omega);
+  //ROS_INFO("\nv = %lf\nroomba.omega = %lf\n", v, roomba.omega);
+  //ROS_INFO("\nVs.max_omega = %lf\nVd.max_omega = %lf\n", Vs.max_omega, Vd.max_omega);
+  double max_omega = std::min(Vs.max_ome66ga, Vd.max_omega);
+  double can_omega_max = (max_speed - v) / (13.135*roomba_radius);
+
+  dw.min_omega = std::max(-can_omega_max, min_omega);
+  //ROS_INFO("\nmax_omega = %lf\ncan_omega_max = %lf\n", max_omega, can_omega_max);
+  dw.max_omega = std::min(can_omega_max, max_omega);
+  return;
+}
+*/
+
 void calc_dynamic_window(Dw& dw, const Status& roomba)
 {
   const Dw Vs= {
@@ -182,7 +186,6 @@ void calc_dynamic_window(Dw& dw, const Status& roomba)
   dw.max_omega = std::min(Vs.max_omega, Vd.max_omega);
   return;
 }
-*/
 
 //全部local
 void calc_l_traj(std::vector<Status>& traj, const double& v, const double& y)
@@ -280,7 +283,7 @@ void calc_speed_cost(double& speed_cost, const std::vector<Status>& traj)
 void calc_l_ob_cost(double& l_ob_cost, const std::vector<Status>& traj, const std::vector<float>& obstacle)
 {
   int skip_i = 1;
-  int skip_j = 1;
+  int skip_j = 10;
   double x = 0.0;
   double xx = 0.0;
   double y = 0.0;
@@ -297,10 +300,10 @@ void calc_l_ob_cost(double& l_ob_cost, const std::vector<Status>& traj, const st
   double dist = 0.0;
   double inf = std::numeric_limits<double>::infinity();
   double min_dist = inf;
-  double left_rod_max = 1.40;
+  double left_rod_max = 1.10;
   double left_rod_min = 0.90;
   double right_rod_max = -0.90;
-  double right_rod_min = -1.40;
+  double right_rod_min = -1.10;
 
   for(int i = 0; i < traj.size(); i += skip_i){
     x = traj[i].x;
@@ -314,12 +317,12 @@ void calc_l_ob_cost(double& l_ob_cost, const std::vector<Status>& traj, const st
 
     for(int j = 0; j < obstacle.size(); j += skip_j){
       //ROS_INFO("ob[j] = %f\nob_theta = %lf\n", obstabcle[j], ob_theta);
-      //if(( left_rod_min < ob_theta && ob_theta < left_rod_max)
-      //|| ( right_rod_min < ob_theta && ob_theta < right_rod_max)){
-      //  ob = past_ob;
-      //  ob_theta += skip_j * roomba_scan.angle_increment;
-      //  continue;
-      //} /*else {*/
+      if(( left_rod_min < ob_theta && ob_theta < left_rod_max)
+      || ( right_rod_min < ob_theta && ob_theta < right_rod_max)){
+        ob = past_ob;
+        //ob_theta += skip_j * roomba_scan.angle_increment;
+        //continue;
+      } else {
         if(obstacle[j] < 60.0f){
           ob = obstacle[j];
           past_ob = ob;
@@ -327,23 +330,23 @@ void calc_l_ob_cost(double& l_ob_cost, const std::vector<Status>& traj, const st
           ob = 60.0;
           past_ob = ob;
         }
-      //}
+      }
 
       //棒の場所判定用
-      if(obstacle[j] < 5.0 * robot_radius){
-        ROS_INFO("ob[j] = %f\nob_theta = %lf\n", obstacle[j], ob_theta);
-        ob_theta += skip_j * roomba_scan.angle_increment;
-        continue;
-      }
+      //if(obstacle[j] < 5.0 * roomba_radius){
+      //  ROS_INFO("ob[j] = %f\nob_theta = %lf\n", obstacle[j], ob_theta);
+      //  ob_theta += skip_j * roomba_scan.angle_increment;
+      //  continue;
+      //}
 
       //極座標での２点間の距離を調べる
       rr = r*r;
       obob = ob*ob;
-      rob = 2*r*ob;
+      rob = r*ob;
       c = std::cos(theta - ob_theta);
-      dist = std::sqrt(rr + obob - rob*c);
+      dist = std::sqrt(rr + obob - 2*rob*c);
 
-      if(dist <= robot_radius){
+      if(dist <= roomba_radius){
 		l_ob_cost = inf;
         return;
       }
@@ -377,13 +380,14 @@ Speed dwa_control(const Status& g_roomba, const Position& g_goal, const std::vec
   double min_speed_cost = speed_cost;
   double min_ob_cost = l_ob_cost;
 
-  calc_dynamic_window_v(dw, g_roomba);
-  //ROS_INFO("\ndw.max_omega = %lf\n", dw.max_omega);
+  calc_dynamic_window(dw, g_roomba);
+  //calc_dynamic_window(dw, g_roomba);
   for(double v = dw.min_v; v <= dw.max_v; v += dv){
-    calc_dynamic_window_omega(dw, g_roomba, v);
+	//calc_dynamic_window_omega(dw, g_roomba, v);
+	//ROS_INFO("\ndw.max_omega = %lf\n", dw.max_omega);
     for(double y = dw.min_omega; y <= dw.max_omega; y += dyaw){
-      if((-exception_omega < y && y < 0.0)
-      || (0.0 < y && y < exception_omega)) continue;
+      if((-exception_omega < y && y < 0.0) || (0.0 < y && y < exception_omega))
+		  continue;
       //ROS_INFO("\n--------------------------------------------------------------------------------------------\nv = %lf\ny = %lf\n", v, y);
 
       calc_l_traj(l_traj, v, y);
@@ -436,8 +440,7 @@ int is_goal(const Status& roomba, const Position& goal)
   double error_dist = std::sqrt(error.x*error.x + error.y*error.y);
   double yaw_tolerance = M_PI / 90;
 
-  if(error_dist <= robot_radius
-  && error.yaw < yaw_tolerance){
+  if(error_dist <= roomba_radius && error.yaw < yaw_tolerance){
     //ROS_INFO("\n\nGoal!!!\n\n");
     return 0;
   } else {
@@ -461,6 +464,7 @@ bool is_normalized(const geometry_msgs::Quaternion& msg)
 void odom_callback(const nav_msgs::Odometry::ConstPtr& msg)
 {
   roomba_odom = *msg;
+  get_pose = true;
 }
 
 void scan_callback(const sensor_msgs::LaserScan::ConstPtr& msg)
@@ -471,11 +475,13 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr& msg)
 void gpath_callback(const nav_msgs::Path::ConstPtr& msg)
 {
   roomba_gpath = *msg;
+  get_gpath = true;
 }
 
 void amcl_callback(const geometry_msgs::PoseStamped::ConstPtr& msg)
 {
   roomba_status = *msg;
+  get_pose = true;
 }
 
 int main(int argc, char **argv)
@@ -517,13 +523,13 @@ int main(int argc, char **argv)
     } else {
       normalized = is_normalized(roomba_status.pose.orientation);
     }
-    if(roomba_scan.ranges.size() && normalized){
+    if(roomba_scan.ranges.size() && normalized && get_pose /*&& get_gpath*/){
       if(dev) {
         g_roomba.x = roomba_odom.pose.pose.position.x;
         g_roomba.y = roomba_odom.pose.pose.position.y;
         g_roomba.yaw = tf::getYaw(roomba_odom.pose.pose.orientation);
-        //roomba_ctrl.mode = is_goal(g_roomba, g_goal);//ゴール判別
-        roomba_ctrl.mode = 0;
+        roomba_ctrl.mode = is_goal(g_roomba, g_goal);//ゴール判別
+        //roomba_ctrl.mode = 0;
       } else {
         g_roomba.x = roomba_status.pose.position.x;
         g_roomba.y = roomba_status.pose.position.y;
@@ -535,12 +541,10 @@ int main(int argc, char **argv)
 
       output = dwa_control(g_roomba, g_goal, roomba_scan.ranges);
       //output = dwa_control(g_roomba, roomba_gpath, roomba_scan.ranges);
-      //roomba_ctrl.cntl.linear.x = 0.0;
-      //roomba_ctrl.cntl.angular.z = 0.98;
       roomba_ctrl.cntl.linear.x = output.v / max_speed;
       roomba_ctrl.cntl.angular.z = output.omega / max_yawrate;
-	  ROS_INFO("\nroomba_ctrl...x = %lf\n", roomba_ctrl.cntl.linear.x);
-	  ROS_INFO("\nroomba_ctrl...z = %lf\n", roomba_ctrl.cntl.angular.z);
+	  //ROS_INFO("\nroomba_ctrl...x = %lf\n", roomba_ctrl.cntl.linear.x);
+	  //ROS_INFO("\nroomba_ctrl...z = %lf\n", roomba_ctrl.cntl.angular.z);
       roomba_ctrl_pub.publish(roomba_ctrl);
     }
     ros::spinOnce();
@@ -548,5 +552,4 @@ int main(int argc, char **argv)
   }
 
   return 0;
-
 }
