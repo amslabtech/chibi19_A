@@ -20,3 +20,5 @@ dis_g_path_cost_gain: 0.0
 
 limit_speed: 0.1
 limit_yawrate: 0.87
+
+dwa_only: false
