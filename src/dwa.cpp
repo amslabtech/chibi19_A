@@ -11,21 +11,21 @@
 #include <sstream>
 
 //#define dt 0.1
-//#define dv 0.01
-//#define dyaw 0.01
+//#define dv 0.02
+//#define dyaw 0.02
 //#define max_speed 0.40
 //#define min_speed 0.0
 //#define max_accel 2.0
 ////#define min_yawrate -0.87
 //#define max_yawrate 0.87
-//#define max_dyawrate 2.0
+//#define max_dyawrate 3.0
 //#define roomba_radius 0.17
-
-//#define limit_speed 0.20
-//#define limit_yawrate 0.20
+//#define limit_speed 0.10
+//#define limit_yawrate 0.87
+//
 //#define predict_time 3.0
 //#define l_ob_cost_gain 1.0
-//#define speed_cost_gain 1.0
+//#define speed_cost_gain 10.0
 //#define omega_cost_gain 0.0
 //#define to_g_goal_cost_gain 0.0
 //#define dis_g_goal_cost_gain 0.0
@@ -42,17 +42,16 @@ double max_accel;
 double max_yawrate;
 double max_dyawrate;
 double roomba_radius;
-
-double limit_speed; 
+double limit_speed;
 double limit_yawrate;
+
 double predict_time;
 double l_ob_cost_gain;
 double speed_cost_gain;
 double omega_cost_gain;
 double to_g_goal_cost_gain;
 double dis_g_goal_cost_gain;
-double to_g_path_cost_gain;
-double dis_g_path_cost_gain;
+
 
 nav_msgs::Path roomba_gpath;
 nav_msgs::Odometry roomba_odom;
@@ -130,55 +129,7 @@ void motion(Status& roomba, const double& v, const double& y)
   return;
 }
 
-/*
-void calc_dynamic_window_v(Dw& dw, const Status& roomba)
-{
-  const Dw Vs= {
-   min_speed,
-   max_speed,//limit_speed,
-   min_yawrate,//-limit_yawrate,
-   max_yawrate//limit_yawrate
-  };
-  Dw Vd = {
-    roomba.v - max_accel * dt,
-    roomba.v + max_accel * dt,
-    0.0,
-    0.0
-  };
-
-  dw.min_v = std::max(Vs.min_v, Vd.min_v);
-  dw.max_v = std::min(Vs.max_v, Vd.max_v);
-  return;
-}
-
-void calc_dynamic_window_omega(Dw& dw, const Status& roomba, const double& v)
-{
-  const Dw Vs= {
-   min_speed,
-   max_speed,
-   min_yawrate,
-   max_yawrate
-  };
-  Dw Vd = {
-    0.0,
-    0.0,
-    roomba.omega - max_dyawrate * dt,
-    roomba.omega + max_dyawrate * dt
-  };
-  double min_omega = std::max(Vs.min_omega, Vd.min_omega);
-  //ROS_INFO("\nv = %lf\nroomba.omega = %lf\n", v, roomba.omega);
-  //ROS_INFO("\nVs.max_omega = %lf\nVd.max_omega = %lf\n", Vs.max_omega, Vd.max_omega);
-  double max_omega = std::min(Vs.max_ome66ga, Vd.max_omega);
-  double can_omega_max = (max_speed - v) / (13.135*roomba_radius);
-
-  dw.min_omega = std::max(-can_omega_max, min_omega);
-  //ROS_INFO("\nmax_omega = %lf\ncan_omega_max = %lf\n", max_omega, can_omega_max);
-  dw.max_omega = std::min(can_omega_max, max_omega);
-  return;
-}
-*/
-
-void calc_dynamic_window(Dw& dw, const Status& roomba)
+Dw calc_dynamic_window(const Status& roomba)
 {
   const Dw Vs= {
    min_speed,
@@ -192,12 +143,14 @@ void calc_dynamic_window(Dw& dw, const Status& roomba)
     roomba.omega - max_dyawrate * dt,
     roomba.omega + max_dyawrate * dt
   };
+  Dw dw = {
+	  std::max(Vs.min_v, Vd.min_v),
+	  std::min(Vs.max_v, Vd.max_v),
+	  std::max(Vs.min_omega, Vd.min_omega),
+	  std::min(Vs.max_omega, Vd.max_omega)
+  };
 
-  dw.min_v = std::max(Vs.min_v, Vd.min_v);
-  dw.max_v = std::min(Vs.max_v, Vd.max_v);
-  dw.min_omega = std::max(Vs.min_omega, Vd.min_omega);
-  dw.max_omega = std::min(Vs.max_omega, Vd.max_omega);
-  return;
+  return dw;
 }
 
 //全部local
@@ -214,8 +167,7 @@ void calc_l_traj(std::vector<Status>& traj, const double& v, const double& y)
   return;
 }
 
-//dwaのみで動かすときに使う
-void calc_to_g_goal_cost(double& to_g_goal_cost, const std::vector<Status>& l_traj, const Status& g_roomba, const Position& g_goal)
+double calc_to_g_goal_cost(const std::vector<Status>& l_traj, const Status& g_roomba, const Position& g_goal)
 {
   Status l_last = l_traj.back();
   Position g_last = {0.0, 0.0, 0.0};
@@ -246,11 +198,10 @@ void calc_to_g_goal_cost(double& to_g_goal_cost, const std::vector<Status>& l_tr
   angle_range(to_g_goal_theta);
   to_g_goal_theta = std::fabs(to_g_goal_theta);
 
-  to_g_goal_cost = to_g_goal_cost_gain * to_g_goal_theta /*+ dis_g_goal_cost_gain * to_g_goal_dist*/;
-  return;
+  return to_g_goal_cost_gain * to_g_goal_theta /*+ dis_g_goal_cost_gain * to_g_goal_dist*/;
 }
 
-void calc_to_g_path_cost(double& to_g_path_cost, const std::vector<Status>& l_traj, const Status& g_roomba, const nav_msgs::Path& g_path)
+double calc_to_g_path_cost(const std::vector<Status>& l_traj, const Status& g_roomba, const nav_msgs::Path& g_path)
 {
   Position g_goal = {0.0, 0.0, 0.0};
   Position g_error = {0.0, 0.0, 0.0};
@@ -258,7 +209,7 @@ void calc_to_g_path_cost(double& to_g_path_cost, const std::vector<Status>& l_tr
   int n_g_path_p_d_i = 0;//nearest gpath point distance i
   double n_g_path_p_d = 10000.0;//nearest gpath point distance
   double g_error_dist = 0.0;
-  //double to_g_path_cost = 0.0;
+  double to_g_path_cost = 0.0;
 
   for(int i = 0; i < g_path.poses.size(); i++){
     g_error.x = g_path.poses[i].pose.position.x - g_roomba.x;
@@ -277,23 +228,22 @@ void calc_to_g_path_cost(double& to_g_path_cost, const std::vector<Status>& l_tr
   g_goal.y = g_path.poses[next_g_path_p_i].pose.position.y;
   g_goal.yaw = tf::getYaw(g_path.poses[next_g_path_p_i].pose.orientation);
 
-  calc_to_g_goal_cost(to_g_path_cost, l_traj, g_roomba, g_goal);
-  return;
+  to_g_path_cost = calc_to_g_goal_cost(l_traj, g_roomba, g_goal);
+  return to_g_path_cost;
 }
 
 //全部local
-void calc_speed_cost(double& speed_cost, const std::vector<Status>& traj)
+double calc_speed_cost(const std::vector<Status>& traj)
 {
   Status last = traj.back();
   double error_speed = max_speed - last.v;
   double error_omega = std::fabs(last.omega); 
 
-  speed_cost = speed_cost_gain*error_speed + omega_cost_gain*error_omega;
-  return;
+  return speed_cost_gain*error_speed + omega_cost_gain*error_omega;
 }
 
 //全部local
-void calc_l_ob_cost(double& l_ob_cost, const std::vector<Status>& traj, const std::vector<float>& obstacle)
+double calc_l_ob_cost(const std::vector<Status>& traj, const std::vector<float>& obstacle)
 {
   int skip_i = 1;
   int skip_j = 10;
@@ -332,10 +282,10 @@ void calc_l_ob_cost(double& l_ob_cost, const std::vector<Status>& traj, const st
       //ROS_INFO("ob[j] = %f\nob_theta = %lf\n", obstabcle[j], ob_theta);
       if(( left_rod_min < ob_theta && ob_theta < left_rod_max)
       || ( right_rod_min < ob_theta && ob_theta < right_rod_max)){
-        ob = past_ob;
-        //ob_theta += skip_j * roomba_scan.angle_increment;
-        //continue;
-      } else {
+        //ob = past_ob;
+        ob_theta += skip_j * roomba_scan.angle_increment;
+        continue;
+      } //else {
         if(obstacle[j] < 60.0f){
           ob = obstacle[j];
           past_ob = ob;
@@ -343,7 +293,7 @@ void calc_l_ob_cost(double& l_ob_cost, const std::vector<Status>& traj, const st
           ob = 60.0;
           past_ob = ob;
         }
-      }
+      //}
 
       //棒の場所判定用
       //if(obstacle[j] < 5.0 * roomba_radius){
@@ -360,8 +310,7 @@ void calc_l_ob_cost(double& l_ob_cost, const std::vector<Status>& traj, const st
       dist = std::sqrt(rr + obob - 2*rob*c);
 
       if(dist <= roomba_radius){
-		l_ob_cost = inf;
-        return;
+		return inf;
       }
 
       if(min_dist >= dist){
@@ -372,12 +321,11 @@ void calc_l_ob_cost(double& l_ob_cost, const std::vector<Status>& traj, const st
     }
   }
 
-   l_ob_cost = l_ob_cost_gain / min_dist;
-  return;
+  return l_ob_cost_gain / min_dist;
 }
 
-Speed dwa_control(const Status& g_roomba, const Position& g_goal, const std::vector<float>& l_ob)
-//Speed dwa_control(const Status& g_roomba, const nav_msgs::Path& g_path, const std::vector<float>& ob)
+//Speed dwa_control(const Status& g_roomba, const Position& g_goal, const std::vector<float>& l_ob)
+Speed dwa_control(const Status& g_roomba, const nav_msgs::Path& g_path, const std::vector<float>& l_ob)
 {
   Dw dw = {0.0, 0.0, 0.0, 0.0};
   Speed best_output = {0.0, 0.0};
@@ -393,36 +341,34 @@ Speed dwa_control(const Status& g_roomba, const Position& g_goal, const std::vec
   double min_speed_cost = speed_cost;
   double min_ob_cost = l_ob_cost;
 
-  calc_dynamic_window(dw, g_roomba);
-  //calc_dynamic_window(dw, g_roomba);
+  dw = calc_dynamic_window(g_roomba);
   for(double v = dw.min_v; v <= dw.max_v; v += dv){
-	//calc_dynamic_window_omega(dw, g_roomba, v);
-	//ROS_INFO("\ndw.max_omega = %lf\n", dw.max_omega);
+	ROS_INFO("\ndw.max_omega = %lf\n", dw.max_omega);
     for(double y = dw.min_omega; y <= dw.max_omega; y += dyaw){
       if((-exception_omega < y && y < 0.0) || (0.0 < y && y < exception_omega))
 		  continue;
-      //ROS_INFO("\n--------------------------------------------------------------------------------------------\nv = %lf\ny = %lf\n", v, y);
+      ROS_INFO("\n--------------------------------------------------------------------------------------------\nv = %lf\ny = %lf\n", v, y);
 
       calc_l_traj(l_traj, v, y);
 
-      calc_speed_cost(speed_cost, l_traj);
-      calc_l_ob_cost(l_ob_cost, l_traj, l_ob);
-      calc_to_g_goal_cost(to_g_goal_cost, l_traj, g_roomba, g_goal);
-      //calc_to_g_path_cost(to_g_path_cost, l_traj, g_roomba, g_path);
-      final_cost = to_g_goal_cost + speed_cost + l_ob_cost;
-      //final_cost = to_g_path_cost + speed_cost + l_ob_cost;
+      speed_cost = calc_speed_cost(l_traj);
+      l_ob_cost = calc_l_ob_cost(l_traj, l_ob);
+      //to_g_goal_cost = calc_to_g_goal_cost(l_traj, g_roomba, g_goal);
+      to_g_path_cost = calc_to_g_path_cost(l_traj, g_roomba, g_path);
+      //final_cost = to_g_goal_cost + speed_cost + l_ob_cost;
+      final_cost = to_g_path_cost + speed_cost + l_ob_cost;
 
       //ROS_INFO("\nto_goal_cost = %lf\n\n", to_g_goal_cost);
-      ////ROS_INFO("\nto_gpath_cost = %lf\n\n", to_g_path_cost);
-      //ROS_INFO("\nspeed_cost = %lf\n\n", speed_cost);
-      //ROS_INFO("\nob_cost = %lf\n\n", l_ob_cost);
-      //ROS_INFO("\nfinal_cost = %lf\n", final_cost);
-      //ROS_INFO("\n---------------------------------------------------------------------\nnow min_cost = %lf\n", min_cost);
-      //ROS_INFO("\nnow min_speed_cost = %lf\n", min_speed_cost);
-      //ROS_INFO("\nnow min_ob_cost = %lf\n", min_ob_cost);
-      //ROS_INFO("\nnow min_to_goal_cost = %lf\n", min_to_goal_cost);
-      //ROS_INFO("\nnow best_output.v = %lf\n", best_output.v);
-      //ROS_INFO("\nnow best_output.omega = %lf\n-----------------------------------------------------------------\n", best_output.omega);
+      ROS_INFO("\nto_gpath_cost = %lf\n\n", to_g_path_cost);
+      ROS_INFO("\nspeed_cost = %lf\n\n", speed_cost);
+      ROS_INFO("\nob_cost = %lf\n\n", l_ob_cost);
+      ROS_INFO("\nfinal_cost = %lf\n", final_cost);
+      ROS_INFO("\n---------------------------------------------------------------------\nnow min_cost = %lf\n", min_cost);
+      ROS_INFO("\nnow min_speed_cost = %lf\n", min_speed_cost);
+      ROS_INFO("\nnow min_ob_cost = %lf\n", min_ob_cost);
+      ROS_INFO("\nnow min_to_goal_cost = %lf\n", min_to_goal_cost);
+      ROS_INFO("\nnow best_output.v = %lf\n", best_output.v);
+      ROS_INFO("\nnow best_output.omega = %lf\n-----------------------------------------------------------------\n", best_output.omega);
 
       if(min_cost > final_cost) {
         min_to_goal_cost = to_g_goal_cost;
@@ -507,44 +453,43 @@ int main(int argc, char **argv)
   ros::Subscriber roomba_scan_sub = n.subscribe("scan",1, scan_callback);
   ros::Subscriber roomba_gpath_sub = n.subscribe("gpath", 1, gpath_callback);
   ros::Subscriber roomba_status_sub = n.subscribe("amcl_pose", 1, amcl_callback);
-  ros::Rate loop_rate(1);
+  ros::Rate loop_rate(4);
 
-  nh.param("dt", dt, 0.10);
-  nh.param("dv", dv, 0.01);
-  nh.param("dyaw", dyaw, 0.01);
-  nh.param("max_speed", max_speed, 0.40);
-  nh.param("min_speed", min_speed, 0.00);
-  nh.param("max_accel", max_accel, 2.00);
-  nh.param("max_yawrate", max_yawrate, 0.87);
-  //nh.param("min_yawrate", min_yawrate, -0.87);
-  nh.param("max_dyawrate", max_dyawrate, 2.00);
-  nh.param("roomba_radius", roomba_radius, 0.17);
+  nh.param("dt", dt, 0.0);
+  nh.param("dv", dv, 0.0);
+  nh.param("dyaw", dyaw, 0.0);
+  nh.param("max_speed", max_speed, 0.0);
+  nh.param("min_speed", min_speed, 0.0);
+  nh.param("max_accel", max_accel, 0.0);
+  nh.param("max_yawrate", max_yawrate, 0.0);
+  //nh.param("min_yawrate", max_yawrate, 0.0);
+  nh.param("max_dyawrate", max_dyawrate, 0.0);
+  nh.param("roomba_radius", roomba_radius, 0.0);
+  nh.param("limit_speed", limit_speed, 0.0);
+  nh.param("limit_yawrate", limit_yawrate, 0.0);
 
-  nh.param("limit_speed", limit_speed, 0.20);
-  nh.param("limit_yawrate", limit_yawrate, 0.20);
-  nh.param("predict_time", predict_time, 3.0);
-  nh.param("l_ob_cost_gain", l_ob_cost_gain, 1.00);
-  nh.param("speed_cost_gain", speed_cost_gain, 1.00);
-  nh.param("omega_cost_gain", omega_cost_gain, 0.00);
-  nh.param("to_g_goal_cost_gain", to_g_goal_cost_gain, 0.00);
-  nh.param("dis_g_goal_cost_gain", dis_g_goal_cost_gain, 0.00);
-  nh.param("to_g_path_cost_gain", to_g_path_cost_gain, 0.00);
-  nh.param("dis_g_path_cost_gain", dis_g_path_cost_gain, 0.00);
+  nh.param("predict_time", predict_time, 0.0);
+  nh.param("l_ob_cost_gain", l_ob_cost_gain, 0.0);
+  nh.param("speed_cost_gain", speed_cost_gain, 0.0);
+  nh.param("omega_cost_gain", omega_cost_gain, 0.0);
+  nh.param("to_g_goal_cost_gain", to_g_goal_cost_gain, 0.0);
+  nh.param("dis_g_goal_cost_gain", dis_g_goal_cost_gain, 0.0);
+  //nh.param("to_g_path_cost_gain", to_g_path_cost_gain, 0.0);
+  //nh.param("dis_g_path_cost_gain", dis_g_path_cost_gain, 0.0);
 
   roomba_500driver_meiji::RoombaCtrl roomba_ctrl;
 
   Speed output = {0.0, 0.0};
-  Position g_goal = {3.0, 0.0, 0.0};
+  Position g_goal = {3.0, 3.0, 0.0};
   Status g_roomba = {0.0, 0.0, 0.0, 0.0, 0.0};
 
   //dwaのみ試したいときにtrue
   //dwa_control, output, to_g_goal_cost, final_costのコメントも変えること
-  const bool dev = true;
+  const bool dev = false;
   bool normalized = false;
   //ROS_INFO("start");
 
-  while (ros::ok())
-  {
+  while (ros::ok()){
     if(dev){
       normalized = is_normalized(roomba_odom.pose.pose.orientation);
     } else {
@@ -566,12 +511,11 @@ int main(int argc, char **argv)
       g_roomba.v = max_speed * roomba_odom.twist.twist.linear.x;
       g_roomba.omega = max_yawrate * roomba_odom.twist.twist.angular.z;
 
-      output = dwa_control(g_roomba, g_goal, roomba_scan.ranges);
-      //output = dwa_control(g_roomba, roomba_gpath, roomba_scan.ranges);
+      //output = dwa_control(g_roomba, g_goal, roomba_scan.ranges);
+      output = dwa_control(g_roomba, roomba_gpath, roomba_scan.ranges);
       roomba_ctrl.cntl.linear.x = output.v / max_speed;
       roomba_ctrl.cntl.angular.z = output.omega / max_yawrate;
-	  //ROS_INFO("\nroomba_ctrl...x = %lf\n", roomba_ctrl.cntl.linear.x);
-	  //ROS_INFO("\nroomba_ctrl...z = %lf\n", roomba_ctrl.cntl.angular.z);
+	  ROS_INFO("\nroomba_ctrl...x = %lf\nroomba_ctrl...z = %lf\n", roomba_ctrl.cntl.linear.x, roomba_ctrl.cntl.angular.z);
       roomba_ctrl_pub.publish(roomba_ctrl);
     }
     ros::spinOnce();

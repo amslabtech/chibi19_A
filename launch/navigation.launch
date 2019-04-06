@@ -13,7 +13,7 @@
 	</node>
 
 	<node pkg="chibi19_a" type="dwa" name="dwa">
-		<rosparam file="$(find chibi19_a)/config/param/localization.yaml" command="load" />
+		<rosparam file="$(find chibi19_a)/config/param/dwa.yaml" command="load" />
 	</node>
 </launch>
 
