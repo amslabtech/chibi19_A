@@ -41,11 +41,13 @@ class image_converter:
     image, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
     
     cv_image = cv2.drawContours(cv_image,contours,-1,(0,255,0),3)
+    cv2.imwrite("detection1.png", cv_image)
     rects = list(map(cv2.minAreaRect, contours))
     boxs = list(map(cv2.boxPoints, rects))
     boxs = list(map(np.int0, boxs))
     areas = list(map(cv2.contourArea, boxs))
     cv_image = cv2.drawContours(cv_image,boxs,-1,(255,0,0),2)
+    cv2.imwrite("detection2.png", cv_image)
  #   print(areas)
     for i in range(len(contours)):
 #        rect = cv2.minAreaRect(contours[i])
@@ -74,9 +76,9 @@ class image_converter:
 
     #cv2.imwrite("original.png", original)
     cv2.imwrite("glay.png", gray_image)
-    cv2.imwrite("blur.png", cv_image2)
+    #cv2.imwrite("blur.png", cv_image2)
     cv2.imwrite("thresh.png", thresh)
-    cv2.imwrite("detection.png", cv_image)
+    cv2.imwrite("detection3.png", cv_image)
 
     cv2.waitKey(3)
 

@@ -172,7 +172,7 @@ bool A_star::search_path(float ix, float iy, float gx, float gy)
 	int h2 = 0;
 	int f2 = 0;
 	int cost = 1;
-	float res = map.info.resolution;
+	double res = map.info.resolution;
 	double origin_x = map.info.origin.position.x;
 	double origin_y = map.info.origin.position.y;
 	geometry_msgs::PoseStamped gpath_point;
@@ -317,21 +317,25 @@ int main(int argc, char **argv)
 	ros::NodeHandle private_nh("~");
 	ros::Rate loop_rate(10);
 
-	const int waycount = 6;
+	const int waycount = 8;
 	std::vector<landmark> landmarks(waycount);
 
 	private_nh.param("ix", landmarks[0].x, 0.0);
 	private_nh.param("iy", landmarks[0].y, 0.0);
-	private_nh.param("gx1", landmarks[1].x, 14.5);
-	private_nh.param("gy1", landmarks[1].y, -3.5);
-	private_nh.param("gx2", landmarks[2].x, 15.0);
-	private_nh.param("gy2", landmarks[2].y, 10.0);
-	private_nh.param("gx3", landmarks[3].x, -1.0);
-	private_nh.param("gy3", landmarks[3].y, 10.5);
-	private_nh.param("gx4", landmarks[4].x, -18.0);
-	private_nh.param("gy4", landmarks[4].y, 11.5);
-	private_nh.param("gx5", landmarks[5].x, -18.5);
-	private_nh.param("gy5", landmarks[5].y, -2.3);
+	private_nh.param("gx1", landmarks[1].x, 0.0);
+	private_nh.param("gy1", landmarks[1].y, 0.0);
+	private_nh.param("gx2", landmarks[2].x, 0.0);
+	private_nh.param("gy2", landmarks[2].y, 0.0);
+	private_nh.param("gx3", landmarks[3].x, 0.0);
+	private_nh.param("gy3", landmarks[3].y, 0.0);
+	private_nh.param("gx4", landmarks[4].x, 0.0);
+	private_nh.param("gy4", landmarks[4].y, 0.0);
+	private_nh.param("gx5", landmarks[5].x, 0.0);
+	private_nh.param("gy5", landmarks[5].y, 0.0);
+	private_nh.param("gx6", landmarks[6].x, 0.0);
+	private_nh.param("gy6", landmarks[6].y, 0.0);
+	private_nh.param("gx7", landmarks[7].x, 0.0);
+	private_nh.param("gy7", landmarks[7].y, 0.0);
 	//private_nh.param("gx6", landmarks[6].x, 0.0);
 	//private_nh.param("gy6", landmarks[6].y, 0.0);
 
