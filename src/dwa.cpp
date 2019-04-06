@@ -35,7 +35,6 @@ double l_ob_cost_gain;
 double speed_cost_gain;
 double omega_cost_gain;
 double to_g_goal_cost_gain;
-double dis_g_goal_cost_gain;
 
 struct Speed{
   double v;
