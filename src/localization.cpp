@@ -316,6 +316,12 @@ int main(int argc, char** argv)
 				//ROS_INFO("w = %f", p_cloud[i].w);
 				total_w += p_cloud[i].w; 
 			}
+
+			for(int i=0;i < N; i++){
+				p_cloud[i].w /= total_w;
+			}
+
+			//std::cout << "total = " << total_w << std::endl;
 			if(motion > motion_update){
 				resample(total_w);
 				//ROS_INFO("resampling");
@@ -329,6 +335,9 @@ int main(int argc, char** argv)
 			estimate_pose();
 			estimated_pose.header.stamp = laser.header.stamp;
 			pose_pub.publish(estimated_pose);
+			//std::cout << "x = " << estimated_pose.pose.position.x <<std::endl;
+			//std::cout << "y = " << estimated_pose.pose.position.y <<std::endl;
+			//std::cout << "theta = " << tf::getYaw(estimated_pose.pose.orientation) <<std::endl;
 			//ROS_INFO("published estimated_pose");
 			p_poses.poses.clear();
 			for(int i=0; i < N; i++){
@@ -620,6 +629,9 @@ void Particle::sense(void)
 
 void resample(double total_w)
 {	
+
+	//std::cout << "total = " << total_w << std::endl;
+
 	std::vector<Particle> new_p_cloud;
 	new_p_cloud.resize(0);
 	double mw = 0.0;
@@ -628,9 +640,11 @@ void resample(double total_w)
 		double w_avg = 0.0;
 		for(int i=0; i < N; i++){
 			w_avg += p_cloud[i].w;
-			p_cloud[i].w /= total_w;
+			//p_cloud[i].w /= total_w;
 			mw = std::max(mw, p_cloud[i].w);
 		}
+		//std::cout << "avg =" << w_avg << std::endl;
+		//std::cout << "mw =" << mw << std::endl;
 
 		w_avg /= N;
 		if(w_slow == 0.0)
@@ -681,6 +695,7 @@ void estimate_pose(void)
 	y_cov = 0.0;
 	theta_cov = 0.0;
 	int count =0;
+	double threshould = 1.0 / N;
 	double avg_x = 0.0;
 	double avg_y = 0.0;
 	double avg_theta = 0.0;
@@ -693,7 +708,8 @@ void estimate_pose(void)
 		avg_y += p_cloud[i].p_data.y;
 		avg_theta += p_cloud[i].p_data.theta;
 
-		if((1.0 / N) < p_cloud[i].w){
+		
+		if(threshould < p_cloud[i].w){
 			est_x += p_cloud[i].p_data.x;
 			est_y += p_cloud[i].p_data.y;
 			est_theta += p_cloud[i].p_data.theta;
@@ -704,6 +720,8 @@ void estimate_pose(void)
 	avg_x /= N;
 	avg_y /= N;
 	avg_theta /= N;
+	//std::cout << "threshould = " << threshould << std::endl;	
+	//std::cout << "count =" << count << std::endl;
 
 	est_x /= count;
 	est_y /= count;

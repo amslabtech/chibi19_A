@@ -3,7 +3,7 @@
 	<node pkg="roomba_500driver_meiji" name="roomba_driver" type="main500"/>
 	<node pkg="hokuyo_node" name="hokuyo_node" type="hokuyo_node"/>
 	<node pkg="roomba_teleop_meiji" name="electric_joystick_drive" type="electric_joystick_drive"/>
-	<node pkg="joy" name="joy_node" type="joy_node"/>
+	<!--<node pkg="joy" name="joy_node" type="joy_node"/> -->
 
 	<node pkg="tf" name="base_to_laser" type="static_transform_publisher" args="0 0 0 0 0 0 base_link laser 100" />
 

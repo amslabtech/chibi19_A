@@ -1,4 +1,4 @@
-dt: 0.3
+dt: 0.1
 dv: 0.01
 dyaw: 0.01
 max_speed: 0.42
@@ -8,12 +8,12 @@ max_yawrate: 1.00
 max_dyawrate: 5.0
 robot_radius: 0.17
 
-predict_time: 3.0
-l_ob_cost_gain: 1.0
-speed_cost_gain: 1.0
-to_g_goal_cost_gain: 1.0
+predict_time: 5.0
+l_ob_cost_gain: 0.5
+speed_cost_gain: 0.95
+to_g_goal_cost_gain: 0.4
 
-limit_speed: 0.1
+limit_speed: 0.15
 limit_yawrate: 0.87
 
 dwa_only: false

@@ -8,11 +8,11 @@
 		<rosparam file="$(find chibi19_a)/config/param/globalpath.yaml" command="load" />
 	</node>
 
-	<node pkg="chibi19_a" type="localization" name="localization" >
+	<node pkg="chibi19_a" type="localization" name="localization" output="screen">
 		<rosparam file="$(find chibi19_a)/config/param/localization.yaml" command="load" />
 	</node>
 
-	<node pkg="chibi19_a" type="dwa" name="dwa">
+	<node pkg="chibi19_a" type="dwa" name="dwa" output="screen">
 		<rosparam file="$(find chibi19_a)/config/param/dwa.yaml" command="load" />
 	</node>
 </launch>
