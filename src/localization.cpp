@@ -159,6 +159,7 @@ void MapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 	map_update_cspace();
 	//ROS_INFO("Set likelihood field");
 	
+/*
 	dist.info.resolution = map.info.resolution;
 	dist.info.width = map.info.width;
 	dist.info.height = map.info.height;
@@ -176,7 +177,7 @@ void MapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 		}
 	}
 
-
+*/
 
 	map_received = true;
 
@@ -294,7 +295,6 @@ int main(int argc, char** argv)
 
 			previous_transform = latest_transform;
 			//ROS_INFO("x: %f, y: %f, theta: %f", odom.delta.x, odom.delta.y, odom.delta.theta);
-			double total_w = 0.0;
 			
 			if(x_cov < x_cov_thresh && y_cov < y_cov_thresh){
 				filter_update();
@@ -302,6 +302,8 @@ int main(int argc, char** argv)
 			}
 			//ROS_INFO("x_cov = %f, y_cov = %f", x_cov, y_cov);
 	
+			double total_w = 0.0;
+
 			for(int i=0; i < N; i++){
 				p_cloud[i].move(odom);
 				p_cloud[i].sense();
