@@ -212,8 +212,8 @@ include_directories(
 #add_executable(scan_test src/scan_test.cpp)
 #target_link_libraries(scan_test ${catkin_LIBRARIES})
 
-#add_executable(dwa src/dwa.cpp)
-#target_link_libraries(dwa ${catkin_LIBRARIES})
+add_executable(dwa src/dwa.cpp)
+target_link_libraries(dwa ${catkin_LIBRARIES})
 
 #add_executable(amcll src/amcll.cpp)
 #target_link_libraries(amcll ${catkin_LIBRARIES})
