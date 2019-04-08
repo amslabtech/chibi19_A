@@ -36,6 +36,7 @@ double roomba_radius;
 double l_ob_cost_gain;
 double speed_cost_gain;
 double to_g_goal_cost_gain;
+double ignore_to_g_path_cost;
 
 struct Speed{
   double v;
@@ -340,8 +341,9 @@ Speed dwa_control(const Status& g_roomba, const std::vector<float>& l_ob, const 
 	if(fabs(v) < EPS) continue;
     for(double dwy = dw.min_omega; dwy <= dw.max_omega; dwy += dyaw){
 	  ab_dwy = fabs(dwy);
-      if(EPS < ab_dwy && ab_dwy < exception_omega) continue;
-	  else if(ab_dwy <= EPS) y = 0.0;
+      //if(EPS < ab_dwy && ab_dwy < exception_omega) continue;
+	  //else if(ab_dwy <= EPS) y = 0.0;
+	  if(ab_dwy <= EPS) y = 0.0;
 	  else y = dwy;
       std::cout << "-------------------------------------------------------------------------------------------" << std::endl;
       std::cout << "v = " << v << std::endl;
@@ -356,7 +358,7 @@ Speed dwa_control(const Status& g_roomba, const std::vector<float>& l_ob, const 
       if(dwa_only) to_g_goal_cost = calc_to_g_goal_cost(l_traj, g_roomba, g_goal);
       else to_g_path_cost = calc_to_g_path_cost(l_traj, g_roomba, g_path);
 	  
-	  if(l_ob_cost > 0.8) to_g_path_cost = 0.0;
+	  if(l_ob_cost > ignore_to_g_path_cost) to_g_path_cost = 0.0;
       final_cost = to_g_goal_cost + to_g_path_cost + speed_cost + l_ob_cost;
 
       //計算結果出力
@@ -481,6 +483,7 @@ int main(int argc, char **argv)
   nh.param("l_ob_cost_gain", l_ob_cost_gain, 0.0);
   nh.param("speed_cost_gain", speed_cost_gain, 0.0);
   nh.param("to_g_goal_cost_gain", to_g_goal_cost_gain, 0.0);
+  nh.param("ignore_to_g_path_cost", ignore_to_g_path_cost, 0.0);
 
   roomba_500driver_meiji::RoombaCtrl roomba_cntl;
 
