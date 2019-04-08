@@ -238,6 +238,7 @@ int main(int argc, char** argv)
 	private_nh_.getParam("use_init_pose", use_init_pose);
 
 	srand((unsigned int)time(NULL));
+
 	x_cov = init_x_cov;
 	y_cov = init_y_cov;
 	theta_cov = init_theta_cov;
@@ -251,7 +252,6 @@ int main(int argc, char** argv)
 	estimated_pose.pose.position.y = init_y;
 	estimated_pose.pose.position.z = 0.0;
 	quaternionTFToMsg(tf::createQuaternionFromYaw(init_theta), estimated_pose.pose.orientation);	
-
 	ros::Publisher pose_pub = nh_.advertise<geometry_msgs::PoseStamped>("amcl_pose", 10);
 	ros::Publisher poses_pub = nh_.advertise<geometry_msgs::PoseArray>("particle", 10);
 	ros::Publisher dist_pub = nh_.advertise<nav_msgs::OccupancyGrid>("likelihood", 10);
@@ -263,9 +263,8 @@ int main(int argc, char** argv)
 	tf::TransformBroadcaster map_br;
 	tf::StampedTransform latest_transform;
 	tf::StampedTransform previous_transform;
-	tf::Quaternion q;
+	tf::Quaternion q(0, 0, 0, 1);
 	tf::Transform transform;
-	q.setRPY(0.0, 0.0, 0.0);
 	transform.setRotation(q);
 	transform.setOrigin(tf::Vector3(0, 0, 0));
 	previous_transform = tf::StampedTransform(transform, ros::Time::now(), "odom", "base_link");
@@ -290,7 +289,7 @@ int main(int argc, char** argv)
 			odom.delta.y= latest_transform.getOrigin().y() - previous_transform.getOrigin().y();
 			odom.delta.theta = tf::getYaw(latest_transform.getRotation()) - tf::getYaw(previous_transform.getRotation());
 
-			motion += sqrt(pow(odom.delta.x, 2.0) + pow(odom.delta.y, 2.0));
+			motion += sqrt((odom.delta.x * odom.delta.x) + (odom.delta.y * odom.delta.y));
 			angle += fabs(odom.delta.theta);
 
 			previous_transform = latest_transform;
@@ -445,7 +444,7 @@ void enqueue(int i_f, int j_f, int i_o, int j_o, std::priority_queue<CellData>& 
 
 	int di = abs(i_f - i_o);//freeのcellとoccupiedのcellの距離(x)
 	int dj = abs(j_f - j_o);//freeのcellとoccupiedのcellの距離(y)
-	double distance = sqrt(pow(di, 2.0) + pow(dj, 2.0));
+	double distance = sqrt((di * di) + (dj * dj));
 	
 	if(distance > cell_radius)
 		return;
@@ -544,7 +543,7 @@ void Particle::move(Odom_data ndata)
 	double delta_rot1_noise, delta_rot2_noise;
 	pose_vector old_pose = {(ndata.pose.x - ndata.delta.x), (ndata.pose.y - ndata.delta.y), (ndata.pose.theta - ndata.delta.theta)};
 
-	delta_trans = sqrt(pow(ndata.delta.x, 2.0) + pow(ndata.delta.y, 2.0));
+	delta_trans = sqrt((ndata.delta.x * ndata.delta.x) + (ndata.delta.y * ndata.delta.y));
 	if(delta_trans < 0.01)
 		delta_rot1 = 0.0;
 	else
@@ -555,9 +554,9 @@ void Particle::move(Odom_data ndata)
 	delta_rot1_noise = std::min(fabs(angle_diff(delta_rot1, 0.0)), fabs(angle_diff(delta_rot1,0.0)));
 	delta_rot2_noise = std::min(fabs(angle_diff(delta_rot2, 0.0)), fabs(angle_diff(delta_rot2, M_PI)));
 
-	delta_rot1_hat = angle_diff(delta_rot1, gaussian(alpha1*pow(delta_rot1_noise,2.0) + alpha2*pow(delta_trans, 2.0)));
-	delta_trans_hat = delta_trans - gaussian(alpha3*pow(delta_trans, 2.0) + alpha4*pow(delta_rot1_noise, 2.0) + alpha4*pow(delta_rot2_noise, 2.0));
-	delta_rot2_hat = angle_diff(delta_rot2, gaussian(alpha1*pow(delta_rot2_noise, 2.0) + alpha2*pow(delta_trans, 2.0)));
+	delta_rot1_hat = angle_diff(delta_rot1, gaussian(alpha1*(delta_rot1_noise * delta_rot1_noise) + alpha2*(delta_trans * delta_trans)));
+	delta_trans_hat = delta_trans - gaussian(alpha3*(delta_trans * delta_trans) + alpha4*(delta_rot1_noise * delta_rot1_noise) + alpha4*(delta_rot2_noise * delta_rot2_noise));
+	delta_rot2_hat = angle_diff(delta_rot2, gaussian(alpha1*(delta_rot2_noise * delta_rot2_noise) + alpha2*(delta_trans * delta_trans)));
 
 	p_data.x += delta_trans_hat * cos(p_data.theta + delta_rot1_hat);
 	p_data.y += delta_trans_hat * sin(p_data.theta + delta_rot1_hat);
@@ -576,7 +575,7 @@ void Particle::sense(void)
 
 	p = 1.0;
 
-	double z_hit_demon = 2 * pow(sigma_hit, 2.0);
+	double z_hit_demon = 2 * (sigma_hit * sigma_hit);
 	double z_rand_mult = 1.0 / laser.range_max;
 
 	step = (range_count -1) / (max_beam -1);
@@ -713,9 +712,9 @@ void estimate_pose(void)
 	quaternionTFToMsg(tf::createQuaternionFromYaw(est_theta), estimated_pose.pose.orientation);
 
 	for(int i=0; i < N; i++){
-		x_cov += pow( (p_cloud[i].p_data.x - avg_x), 2.0);
-		y_cov += pow( (p_cloud[i].p_data.y - avg_y), 2.0);
-		theta_cov += pow( (p_cloud[i].p_data.theta - avg_theta), 2.0);
+		x_cov += (p_cloud[i].p_data.x - avg_x) * (p_cloud[i].p_data.x - avg_x);
+		y_cov += (p_cloud[i].p_data.y - avg_y) * (p_cloud[i].p_data.y - avg_y);
+		theta_cov += (p_cloud[i].p_data.theta - avg_theta) * (p_cloud[i].p_data.theta - avg_theta);
 	}
 
 	x_cov = sqrt(x_cov / N);

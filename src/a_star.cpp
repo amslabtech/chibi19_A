@@ -107,7 +107,6 @@ void A_star::set_waypoint(int waycount, std::vector<landmark>& landmarks)
 	
 	float min_dist = INFINITY;
 	int next = 0;
-	int previous = 0;
 	std::vector<float> dist;
 	for(int i=0; i<waycount; i++){
 		dist.push_back( sqrt(pow(new_landmarks[0].x - landmarks[i].x, 2.0) + pow(new_landmarks[0].y - landmarks[i].y, 2.0)) );
@@ -180,14 +179,14 @@ bool A_star::search_path(float ix, float iy, float gx, float gy)
 	//roomba_gpath.poses.clear();
 
 
-	std::vector<std::vector<double> > delta = {
-		{-1,  0, M_PI},
+	std::vector<std::vector<char> > delta = {
+		{-1,  0, 0},
 		//{-1, -1},
-		{ 0, -1, -M_PI / 2},
+		{ 0, -1, 0},
 		//{ 1, -1},
 		{ 1,  0, 0},
 		//{ 1,  1},
-		{ 0,  1, M_PI /2}
+		{ 0,  1, 0}
 		//{-1,  1}
 	};
 
