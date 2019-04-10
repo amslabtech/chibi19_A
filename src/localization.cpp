@@ -4,37 +4,25 @@
 #include<geometry_msgs/PoseWithCovarianceStamped.h>
 #include<geometry_msgs/PoseStamped.h>
 #include<geometry_msgs/PoseArray.h>
+#include<geometry_msgs/Pose2D.h>
 #include<tf/transform_broadcaster.h>
 #include<tf/transform_listener.h>
-
-#include<stdlib.h>
-#include<time.h>
-#include<math.h>
 #include<queue>
-#include<string.h>
-
-typedef struct
-{
-	double x;
-	double y;
-	double theta;
-
-} pose_vector;
 
 class Odom_data
 {
 public:
-	pose_vector pose;
-	pose_vector delta;
+	geometry_msgs::Pose2D pose;
+	geometry_msgs::Pose2D delta;
 
 };
 
 class CellData
 {
 public:
-	unsigned int i_f, j_f;//free cell
-	unsigned int i_o, j_o;//occupied cell
-	double *occ_dist;//障害物までの距離
+	unsigned int i_f, j_f;
+	unsigned int i_o, j_o;
+	double *occ_dist;
 };
 
 class Particle
@@ -44,12 +32,9 @@ public:
 	void init_set(double, double, double, double, double, double);
 	void move(Odom_data);
 	void sense(void);    
-	pose_vector p_data;
+	geometry_msgs::Pose2D p_data;
 	
 	double w;
-
-private:
-
 };
 
 int map_index(int, int);
@@ -57,7 +42,7 @@ int map_grid(double);
 bool map_valid(int, int);
 double normalize(double);
 double angle_diff(double, double);
-double gaussian(double);//Box-Muller
+double gaussian(double);
 void enqueue(int, int, int, int, std::priority_queue<CellData>&, unsigned char*, int);
 void map_update_cspace(void);
 void resample(double);
@@ -117,7 +102,6 @@ std::vector<Particle> p_cloud;
 
 void LaserCallback(const sensor_msgs::LaserScanConstPtr& msg)
 {
-	//ROS_INFO("laser received");
 	laser = *msg;
 	range_count = laser.ranges.size();
 	if(range_count){
@@ -155,9 +139,7 @@ void MapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 		init_set = true;
 	}
 	
-	//ROS_INFO("Initializing likelihood field");
 	map_update_cspace();
-	//ROS_INFO("Set likelihood field");
 	
 /*
 	dist.info.resolution = map.info.resolution;
@@ -169,7 +151,7 @@ void MapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 	for(int i=0; i< map.info.width; i++){
 		for(int j=0; j<map.info.height; j++){
 			if(occ_dist[map_index(i,j)] <laser_likelihood_max_dist){
-				dist.data[map_index(i,j)] = 50 * occ_dist[map_index(i,j)];
+				dist.data[map_index(i,j)] = (100 / laser_likelihood_max_dist) * occ_dist[map_index(i,j)];
 			}
 			else{
 				dist.data[map_index(i,j)] = 100;
@@ -188,7 +170,6 @@ void InitPoseCallback(const geometry_msgs::PoseWithCovarianceStampedConstPtr& ms
 
 	if(init_set)
 		return;
-	//ROS_INFO("init callback");
 	init_pose = *msg;
 	
 	for(int i=0; i < N; i++){
@@ -294,13 +275,10 @@ int main(int argc, char** argv)
 			angle += fabs(odom.delta.theta);
 
 			previous_transform = latest_transform;
-			//ROS_INFO("x: %f, y: %f, theta: %f", odom.delta.x, odom.delta.y, odom.delta.theta);
 			
 			if(x_cov < x_cov_thresh && y_cov < y_cov_thresh){
 				filter_update();
-				//ROS_INFO("filter update");
 			}
-			//ROS_INFO("x_cov = %f, y_cov = %f", x_cov, y_cov);
 	
 			double total_w = 0.0;
 
@@ -313,7 +291,6 @@ int main(int argc, char** argv)
 				if((map.data[map_index(mi, mj)] == -1) || (map.data[map_index(mi, mj)] == 100)){
 					p_cloud[i].w = 0.0;
 				}
-				//ROS_INFO("w = %f", p_cloud[i].w);
 				total_w += p_cloud[i].w; 
 			}
 
@@ -321,24 +298,17 @@ int main(int argc, char** argv)
 				p_cloud[i].w /= total_w;
 			}
 
-			//std::cout << "total = " << total_w << std::endl;
 			if(motion > motion_update){
 				resample(total_w);
-				//ROS_INFO("resampling");
 				motion = 0.0;
 			}
 			if(angle > angle_update){
 				resample(total_w);
-				//ROS_INFO("resampling");
 				angle = 0.0;
 			}
 			estimate_pose();
 			estimated_pose.header.stamp = laser.header.stamp;
 			pose_pub.publish(estimated_pose);
-			//std::cout << "x = " << estimated_pose.pose.position.x <<std::endl;
-			//std::cout << "y = " << estimated_pose.pose.position.y <<std::endl;
-			//std::cout << "theta = " << tf::getYaw(estimated_pose.pose.orientation) <<std::endl;
-			//ROS_INFO("published estimated_pose");
 			p_poses.poses.clear();
 			for(int i=0; i < N; i++){
 				geometry_msgs::Pose tmp_pose;
@@ -423,7 +393,7 @@ double angle_diff(double a, double b)
 		return d2;
 }
 
-double gaussian(double sigma)//Box-Muller
+double gaussian(double sigma)
 {
 	double x1, x2, w, r;
 	do{
@@ -441,7 +411,7 @@ double gaussian(double sigma)//Box-Muller
 	return (sigma * x2 * sqrt(-2.0*log(w)/w));
 }
 
-bool operator<(const CellData& a, const CellData& b)//ソートの定義
+bool operator<(const CellData& a, const CellData& b)
 {
 	return a.occ_dist[map_index(a.i_f, a.j_f)] > b.occ_dist[map_index(b.i_f, b.j_f)];
 }
@@ -449,12 +419,11 @@ bool operator<(const CellData& a, const CellData& b)//ソートの定義
 void enqueue(int i_f, int j_f, int i_o, int j_o, std::priority_queue<CellData>& Q, unsigned char* marked, int cell_radius)
 {
 
-
-	if(marked[map_index(i_f, j_f)])//同じセルかどうかチェック
+	if(marked[map_index(i_f, j_f)])
 		return;
 
-	int di = abs(i_f - i_o);//freeのcellとoccupiedのcellの距離(x)
-	int dj = abs(j_f - j_o);//freeのcellとoccupiedのcellの距離(y)
+	int di = abs(i_f - i_o);
+	int dj = abs(j_f - j_o);
 	double distance = sqrt((di * di) + (dj * dj));
 	
 	if(distance > cell_radius)
@@ -462,7 +431,7 @@ void enqueue(int i_f, int j_f, int i_o, int j_o, std::priority_queue<CellData>& 
 
 	occ_dist[map_index(i_f, j_f)] = distance * map.info.resolution;
 
-	CellData cell;//更新
+	CellData cell;
 	cell.i_f = i_f;
 	cell.j_f = j_f;
 	cell.i_o = i_o;
@@ -477,11 +446,11 @@ void enqueue(int i_f, int j_f, int i_o, int j_o, std::priority_queue<CellData>& 
 
 void map_update_cspace(void)
 {
-	unsigned char* marked;//データを取得したcellをmarkする
-	std::priority_queue<CellData> Q;//cellのデータを管理する
+	unsigned char* marked;
+	std::priority_queue<CellData> Q;
 	marked = new unsigned char[map.info.width*map.info.height];
-	memset(marked, 0, sizeof(unsigned char) * map.info.width*map.info.height);//0で初期化
-	int cell_radius = laser_likelihood_max_dist / map.info.resolution;//半径
+	memset(marked, 0, sizeof(unsigned char) * map.info.width*map.info.height);
+	int cell_radius = laser_likelihood_max_dist / map.info.resolution;
 	
 
 	CellData cell;
@@ -491,12 +460,12 @@ void map_update_cspace(void)
 		cell.i_f = i;
 		for(int j=0; j < map.info.height; j++){
 			
-			if(map.data[map_index(i, j)] == 100){// = occupied
+			if(map.data[map_index(i, j)] == 100){
 				occ_dist[map_index(i, j)] = 0.0;
 				cell.j_o = j;
 				cell.j_f = j;
-				marked[map_index(i, j)] = 1;//障害物があったらmark
-				Q.push(cell);//marked = 1のcellをqに入れる
+				marked[map_index(i, j)] = 1;
+				Q.push(cell);
 			}
 			else{
 				occ_dist[map_index(i, j)] = laser_likelihood_max_dist;
@@ -504,23 +473,23 @@ void map_update_cspace(void)
 		}
 	}
 	
-	while(!Q.empty()){//freeのcellのocc_distを計算する
-		CellData current_cell = Q.top();//Qのtopの要素にアクセスする
+	while(!Q.empty()){
+		CellData current_cell = Q.top();
 
 		if(current_cell.i_f > 0)
-      		enqueue(current_cell.i_f-1, current_cell.j_f,//i_f-1, j_f, i_o, j_o
+      		enqueue(current_cell.i_f-1, current_cell.j_f,
           		current_cell.i_o, current_cell.j_o, Q, marked, cell_radius);
     	if(current_cell.j_f > 0)
-      		enqueue(current_cell.i_f, current_cell.j_f-1,//i_f, j_f-1, i_o, j_o
+      		enqueue(current_cell.i_f, current_cell.j_f-1,
           		current_cell.i_o, current_cell.j_o, Q, marked, cell_radius);
     	if((int)current_cell.i_f < map.info.width - 1)
-      		enqueue(current_cell.i_f+1, current_cell.j_f,//i_f+1, j_f, i_o, j_o 
+      		enqueue(current_cell.i_f+1, current_cell.j_f, 
           		current_cell.i_o, current_cell.j_o, Q, marked, cell_radius);
    	 	if((int)current_cell.j_f < map.info.height - 1)
-      		enqueue(current_cell.i_f, current_cell.j_f+1,//i_f, j_f+1, i_o, j_o
+      		enqueue(current_cell.i_f, current_cell.j_f+1,
           		current_cell.i_o, current_cell.j_o, Q, marked, cell_radius);
 	
-	Q.pop();//Qのtopの要素を消す
+	Q.pop();
 	}
 
   delete[] marked;
@@ -552,7 +521,11 @@ void Particle::move(Odom_data ndata)
 	double delta_rot1, delta_trans, delta_rot2;
 	double delta_rot1_hat, delta_trans_hat, delta_rot2_hat;
 	double delta_rot1_noise, delta_rot2_noise;
-	pose_vector old_pose = {(ndata.pose.x - ndata.delta.x), (ndata.pose.y - ndata.delta.y), (ndata.pose.theta - ndata.delta.theta)};
+	geometry_msgs::Pose2D old_pose;
+
+	old_pose.x = ndata.pose.x - ndata.delta.x;
+	old_pose.y = ndata.pose.y - ndata.delta.y;
+	old_pose.theta = ndata.pose.theta - ndata.delta.theta;
 
 	delta_trans = sqrt((ndata.delta.x * ndata.delta.x) + (ndata.delta.y * ndata.delta.y));
 	if(delta_trans < 0.01)
@@ -582,7 +555,7 @@ void Particle::sense(void)
 	double z, pz;
 	double p;
 	double obs_range, obs_bearing;
-	pose_vector hit;
+	geometry_msgs::Pose2D hit;
 
 	p = 1.0;
 
@@ -598,27 +571,24 @@ void Particle::sense(void)
 		obs_range = laser.ranges[j];
 		obs_bearing = laser.angle_min + (laser.angle_increment * j);
 
-
 		if(obs_range >= laser.range_max)
 			continue;
-		if(obs_range != obs_range)//check for NaN
+		if(obs_range != obs_range)
 			continue;
 
 		pz = 0.0;
 
-		hit.x = p_data.x + obs_range * cos(p_data.theta + obs_bearing);//laserの端点
+		hit.x = p_data.x + obs_range * cos(p_data.theta + obs_bearing);
 		hit.y = p_data.y + obs_range * sin(p_data.theta + obs_bearing);
 
 		int mi = map_grid(hit.x);
 		int mj = map_grid(hit.y);
 		
-
-		if(!map_valid(mi, mj))//一番近い障害物までの距離を取得
+		if(!map_valid(mi, mj))
 			z = laser_likelihood_max_dist;
 		else
 			z = occ_dist[map_index(mi, mj)];
 		
-		//ROS_INFO("z = %f", z);
 		pz += z_hit * exp(-(z * z) / z_hit_demon);
 		pz += z_rand * z_rand_mult;
 
@@ -629,9 +599,6 @@ void Particle::sense(void)
 
 void resample(double total_w)
 {	
-
-	//std::cout << "total = " << total_w << std::endl;
-
 	std::vector<Particle> new_p_cloud;
 	new_p_cloud.resize(0);
 	double mw = 0.0;
@@ -640,11 +607,8 @@ void resample(double total_w)
 		double w_avg = 0.0;
 		for(int i=0; i < N; i++){
 			w_avg += p_cloud[i].w;
-			//p_cloud[i].w /= total_w;
 			mw = std::max(mw, p_cloud[i].w);
 		}
-		//std::cout << "avg =" << w_avg << std::endl;
-		//std::cout << "mw =" << mw << std::endl;
 
 		w_avg /= N;
 		if(w_slow == 0.0)
@@ -708,7 +672,6 @@ void estimate_pose(void)
 		avg_y += p_cloud[i].p_data.y;
 		avg_theta += p_cloud[i].p_data.theta;
 
-		
 		if(threshould < p_cloud[i].w){
 			est_x += p_cloud[i].p_data.x;
 			est_y += p_cloud[i].p_data.y;
@@ -720,8 +683,6 @@ void estimate_pose(void)
 	avg_x /= N;
 	avg_y /= N;
 	avg_theta /= N;
-	//std::cout << "threshould = " << threshould << std::endl;	
-	//std::cout << "count =" << count << std::endl;
 
 	est_x /= count;
 	est_y /= count;
@@ -756,8 +717,4 @@ void filter_update(void)
 	
 	p_cloud = new_p_cloud;
 }
-
-
-
-
 

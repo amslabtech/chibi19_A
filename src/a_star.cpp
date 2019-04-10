@@ -3,16 +3,12 @@
 #include "nav_msgs/Path.h"
 #include "nav_msgs/OccupancyGrid.h"
 #include "geometry_msgs/PoseStamped.h"
-#include <sstream>
-#include <vector>
-#include <algorithm>
-#include <cmath>
 
 bool map_received = false;
 bool initflag = false;
 bool setWP = false;
 
-struct landmark{
+struct waypoint{
 	double x;
 	double y;
 };
@@ -49,7 +45,7 @@ public:
 	A_star(void);
 	void map_callback(const nav_msgs::OccupancyGrid::ConstPtr& msg);
 	void amcl_callback(const geometry_msgs::PoseStamped::ConstPtr& msg);
-	void set_waypoint(int, std::vector<landmark>&);
+	void set_waypoint(int, std::vector<waypoint>&);
 	void get_heuristic(int, int);
 	bool search_path(float, float, float, float);
 	void pub_path(void);
@@ -99,17 +95,17 @@ void A_star::map_callback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
 	map_received = true;
 }
 
-void A_star::set_waypoint(int waycount, std::vector<landmark>& landmarks)
+void A_star::set_waypoint(int waycount, std::vector<waypoint>& waypoints)
 {
-	std::vector<landmark> new_landmarks(waycount+2);
-	new_landmarks[0].x = roomba_status.pose.position.x;
-	new_landmarks[0].y = roomba_status.pose.position.y;
+	std::vector<waypoint> new_waypoints(waycount+2);
+	new_waypoints[0].x = roomba_status.pose.position.x;
+	new_waypoints[0].y = roomba_status.pose.position.y;
 	
 	float min_dist = INFINITY;
 	int next = 0;
 	std::vector<float> dist;
 	for(int i=0; i<waycount; i++){
-		dist.push_back( sqrt(pow(new_landmarks[0].x - landmarks[i].x, 2.0) + pow(new_landmarks[0].y - landmarks[i].y, 2.0)) );
+		dist.push_back( sqrt(pow(new_waypoints[0].x - waypoints[i].x, 2.0) + pow(new_waypoints[0].y - waypoints[i].y, 2.0)) );
 		if(dist[i] < min_dist){
 			next = i;
 			min_dist = dist[i];
@@ -122,14 +118,14 @@ void A_star::set_waypoint(int waycount, std::vector<landmark>& landmarks)
 	}
 
 	for(int i=1; i<=waycount; i++){
-		new_landmarks[i] = landmarks[next % waycount];
+		new_waypoints[i] = waypoints[next % waycount];
 		next++;
 	}
-	new_landmarks[waycount+1] = new_landmarks[0];
+	new_waypoints[waycount+1] = new_waypoints[0];
 
-	landmarks.clear();
+	waypoints.clear();
 
-	landmarks = new_landmarks;
+	waypoints = new_waypoints;
 
 }
 
@@ -317,26 +313,24 @@ int main(int argc, char **argv)
 	ros::Rate loop_rate(10);
 
 	const int waycount = 8;
-	std::vector<landmark> landmarks(waycount);
+	std::vector<waypoint> waypoints(waycount);
 
-	private_nh.param("ix", landmarks[0].x, 0.0);
-	private_nh.param("iy", landmarks[0].y, 0.0);
-	private_nh.param("gx1", landmarks[1].x, 0.0);
-	private_nh.param("gy1", landmarks[1].y, 0.0);
-	private_nh.param("gx2", landmarks[2].x, 0.0);
-	private_nh.param("gy2", landmarks[2].y, 0.0);
-	private_nh.param("gx3", landmarks[3].x, 0.0);
-	private_nh.param("gy3", landmarks[3].y, 0.0);
-	private_nh.param("gx4", landmarks[4].x, 0.0);
-	private_nh.param("gy4", landmarks[4].y, 0.0);
-	private_nh.param("gx5", landmarks[5].x, 0.0);
-	private_nh.param("gy5", landmarks[5].y, 0.0);
-	private_nh.param("gx6", landmarks[6].x, 0.0);
-	private_nh.param("gy6", landmarks[6].y, 0.0);
-	private_nh.param("gx7", landmarks[7].x, 0.0);
-	private_nh.param("gy7", landmarks[7].y, 0.0);
-	//private_nh.param("gx6", landmarks[6].x, 0.0);
-	//private_nh.param("gy6", landmarks[6].y, 0.0);
+	private_nh.param("wx1", waypoints[0].x, 0.0);
+	private_nh.param("wy1", waypoints[0].y, 0.0);
+	private_nh.param("wx2", waypoints[1].x, 0.0);
+	private_nh.param("wy2", waypoints[1].y, 0.0);
+	private_nh.param("wx3", waypoints[2].x, 0.0);
+	private_nh.param("wy3", waypoints[2].y, 0.0);
+	private_nh.param("wx4", waypoints[3].x, 0.0);
+	private_nh.param("wy4", waypoints[3].y, 0.0);
+	private_nh.param("wx5", waypoints[4].x, 0.0);
+	private_nh.param("wy5", waypoints[4].y, 0.0);
+	private_nh.param("wx6", waypoints[5].x, 0.0);
+	private_nh.param("wy6", waypoints[5].y, 0.0);
+	private_nh.param("wx7", waypoints[6].x, 0.0);
+	private_nh.param("wy7", waypoints[6].y, 0.0);
+	private_nh.param("wx8", waypoints[7].x, 0.0);
+	private_nh.param("wy8", waypoints[7].y, 0.0);
 
 
 	A_star as;
@@ -345,11 +339,11 @@ int main(int argc, char **argv)
 	while(ros::ok())
 	{
 		if(initflag && !setWP){
-			as.set_waypoint(waycount, landmarks);
+			as.set_waypoint(waycount, waypoints);
 			setWP = true;
 		}
 		if(map_received && setWP && count < waycount+1){
-			if(as.search_path(landmarks[count].x, landmarks[count].y, landmarks[count+1].x, landmarks[count+1].y)){
+			if(as.search_path(waypoints[count].x, waypoints[count].y, waypoints[count+1].x, waypoints[count+1].y)){
 					as.pub_path();
 					count++;
 			}

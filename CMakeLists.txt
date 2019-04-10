@@ -224,5 +224,5 @@ target_link_libraries(localization ${catkin_LIBRARIES})
 add_executable(a_star src/a_star.cpp)
 target_link_libraries(a_star ${catkin_LIBRARIES})
 
-add_executable(a_star_s src/a_star_s.cpp)
-target_link_libraries(a_star_s ${catkin_LIBRARIES})
+#add_executable(a_star_s src/a_star_s.cpp)
+#target_link_libraries(a_star_s ${catkin_LIBRARIES})
