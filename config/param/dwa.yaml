@@ -16,3 +16,6 @@ limit_speed: 0.07
 limit_yawrate: 0.25
 
 dwa_only: false
+
+stop_time: 5.0
+ignore_line: 1.0
