@@ -367,7 +367,7 @@ int main(int argc, char **argv)
 		}
 		if(map_received && setWP && count < waycount+1){
 			if(as.search_path(waypoints[count].x, waypoints[count].y, waypoints[count+1].x, waypoints[count+1].y)){
-					as.pub_path();
+					//as.pub_path();
 					count++;
 			}
 		}
