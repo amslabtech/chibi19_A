@@ -13,8 +13,8 @@ import numpy as np
 class image_converter:
 
   def __init__(self):
-    self.detection_pub = rospy.Publisher("line_detection",String)
-    #self.detection_pub = rospy.Publisher("line_detection",Bool)
+    self.detection_pub1 = rospy.Publisher("line_detection",String)
+    self.detection_pub2 = rospy.Publisher("detection",Bool)
 
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/usb_cam/image_raw",Image,self.callback)
@@ -49,8 +49,8 @@ class image_converter:
                 #print(areas[i])
                 #print(float(w) / h)
                 
-                self.detection_pub.publish("aaa")
-                #self.detection_pub.publish(True)
+                self.detection_pub1.publish("White Line")
+                self.detection_pub2.publish(True)
 
     cv2.imshow("Image window1", thresh)
     cv2.imshow("Image window2", cv_image)
