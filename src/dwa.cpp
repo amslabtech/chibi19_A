@@ -162,7 +162,7 @@ void log_best_traj(const std::vector<Status>& l_traj){
 
     lpath.poses.push_back(lpath_point);
   }
-
+  
   return;
 }
 
@@ -197,25 +197,25 @@ double calc_to_g_path_cost(const std::vector<Status>& l_traj, const Status& g_ro
   double to_g_path_cost = 0.0;
 
   if(!can_goal){
-    //スタートでg_path.poses[0]が最も近い点となるように-1している
-    for(int i = 0; i < g_path.poses.size() - 1; i++){
-      g_error.x = g_path.poses[i].pose.position.x - g_roomba.x;
-      g_error.y = g_path.poses[i].pose.position.y - g_roomba.y;
-      g_error_dist = std::sqrt(g_error.x*g_error.x + g_error.y*g_error.y);
+	  //スタートでg_path.poses[0]が最も近い点となるように-1している
+	  for(int i = 0; i < g_path.poses.size() - 5; i++){
+		g_error.x = g_path.poses[i].pose.position.x - g_roomba.x;
+		g_error.y = g_path.poses[i].pose.position.y - g_roomba.y;
+		g_error_dist = std::sqrt(g_error.x*g_error.x + g_error.y*g_error.y);
 
-      if(n_g_path_p_d > g_error_dist){
-        n_g_path_p_d = g_error_dist;
-        n_g_path_p_d_i = i;
-      }
-    }
-    next_g_path_p_i = n_g_path_p_d_i + (int)predict_time;
-    if(next_g_path_p_i >= g_path.poses.size() - 1){
-      can_goal = true;
-      //std::cout << "can_goal = " << can_goal << std::endl;
-      next_g_path_p_i = g_path.poses.size() - 1;
-    }
+		if(n_g_path_p_d > g_error_dist){
+		  n_g_path_p_d = g_error_dist;
+		  n_g_path_p_d_i = i;
+		}
+	  }
+	  next_g_path_p_i = n_g_path_p_d_i + (int)predict_time;
+	  if(next_g_path_p_i >= g_path.poses.size() - 5){
+		can_goal = true;
+		//std::cout << "can_goal = " << can_goal << std::endl;
+		next_g_path_p_i = g_path.poses.size() - 1;
+	  }
   } else {
-    next_g_path_p_i = g_path.poses.size() - 1;
+	next_g_path_p_i = g_path.poses.size() - 1;
   }
 
   g_goal.x = g_path.poses[next_g_path_p_i].pose.position.x;
@@ -291,7 +291,7 @@ double calc_l_ob_cost(const std::vector<Status>& traj, const std::vector<float>&
 
       ob_theta += (double)skip_j*roomba_scan.angle_increment;
     }
-  final_dist = min_dist;
+	final_dist = min_dist;
   }
 
   return l_ob_cost_gain/final_dist;
@@ -319,11 +319,11 @@ Speed dwa_control(const Status& g_roomba, const std::vector<float>& l_ob, const 
   //dynamic windowの計算
   calc_dynamic_window(dw, g_roomba);
   for(double v = dw.min_v; v <= dw.max_v; v += dv){
-  //if(fabs(v) < EPS) continue;
+	//if(fabs(v) < EPS) continue;
     for(double dwy = dw.min_omega; dwy <= dw.max_omega; dwy += dyaw){
-      ab_dwy = fabs(dwy);
-      if(ab_dwy <= EPS) y = 0.0;
-      else y = dwy;
+	  ab_dwy = fabs(dwy);
+	  if(ab_dwy <= EPS) y = 0.0;
+	  else y = dwy;
       //std::cout << "-------------------------------------------------------------------------------------------" << std::endl;
       //std::cout << "v = " << v << std::endl;
       //std::cout << "y = " << y << std::endl;
@@ -336,7 +336,7 @@ Speed dwa_control(const Status& g_roomba, const std::vector<float>& l_ob, const 
       //speed_cost = calc_speed_cost(l_traj);
       if(dwa_only) to_g_goal_cost = calc_to_g_goal_cost(l_traj, g_roomba, g_goal);
       else to_g_path_cost = calc_to_g_path_cost(l_traj, g_roomba, g_path);
-
+	  
       final_cost = to_g_goal_cost + to_g_path_cost + speed_cost + l_ob_cost;
 
       //計算結果出力
@@ -363,7 +363,7 @@ Speed dwa_control(const Status& g_roomba, const std::vector<float>& l_ob, const 
         min_speed_cost = speed_cost;
         min_to_goal_cost = to_g_goal_cost;
         min_to_gpath_cost = to_g_path_cost;
-        log_best_traj(l_traj);
+		log_best_traj(l_traj);
       }
     }
   }
@@ -381,21 +381,21 @@ int is_goal(const Status& roomba, const Position& goal)
   error.y = goal.y - roomba.y;
   error_dist = std::sqrt(error.x*error.x + error.y*error.y);
 
-  if(error_dist < roomba_radius){
-    if(dwa_only){
-      std::cout << "goal" << std::endl;
-      return 0;
-    } else {
-      if(can_goal){
-        std::cout << "goal" << std::endl;
-        return 0;
-      } else {
-        return 11;
-      }
-    }
-  } else {
-    return 11;
-  }
+	if(error_dist < roomba_radius){
+	  if(dwa_only){
+		  std::cout << "goal" << std::endl;
+		  return 0;
+	  } else {
+		  if(can_goal){
+			  std::cout << "goal" << std::endl;
+			  return 0;
+		  } else {
+			  return 11;
+		  }
+	  }
+	} else {
+	  return 11;
+	}
 }
 
 bool is_normalized(const geometry_msgs::Quaternion& msg)
@@ -445,7 +445,7 @@ int main(int argc, char **argv)
   ros::Subscriber roomba_scan_sub = n.subscribe("scan",1, scan_callback);
   ros::Subscriber roomba_gpath_sub = n.subscribe("gpath", 1, gpath_callback);
   ros::Subscriber roomba_status_sub = n.subscribe("amcl_pose", 1, amcl_callback);
-  ros::Rate loop_rate(5.0);
+  ros::Rate loop_rate(4.0);
 
   nh.param("dwa_only", dwa_only, false);//dwaのみ試したいときにdwa.yamlでtrueにする
   nh.param("dt", dt, 0.0);
@@ -487,9 +487,9 @@ int main(int argc, char **argv)
         g_roomba.y = roomba_odom.pose.pose.position.y;
         g_roomba.yaw = tf::getYaw(roomba_odom.pose.pose.orientation);
       } else {
-        g_goal.x = roomba_gpath.poses.back().pose.position.x;
-        g_goal.y = roomba_gpath.poses.back().pose.position.y;
-        //g_goal.yaw = tf::getYaw(roomba_gpath.poses.back().pose.orientation);
+		g_goal.x = roomba_gpath.poses.back().pose.position.x;
+		g_goal.y = roomba_gpath.poses.back().pose.position.y;
+		//g_goal.yaw = tf::getYaw(roomba_gpath.poses.back().pose.orientation);
         g_roomba.x = roomba_status.pose.position.x;
         g_roomba.y = roomba_status.pose.position.y;
         g_roomba.yaw = tf::getYaw(roomba_status.pose.orientation);
@@ -499,13 +499,13 @@ int main(int argc, char **argv)
 
       output = dwa_control(g_roomba, roomba_scan.ranges, g_goal, roomba_gpath);
 
-      //std::cout << "g_goal.x = " << g_goal.x << std::endl;
-      //std::cout << "g_goal.y = " << g_goal.y << std::endl;
-      roomba_cntl.mode = is_goal(g_roomba, g_goal);
-      //roomba_cntl.mode = 0; 
-      //std::cout << "roomba_cntl.mode = " << roomba_cntl.mode << std::endl;
-      //std::cout << "roomba_cntl.cntl.linear.x = " << roomba_cntl.cntl.linear.x << std::endl;
-      //std::cout << "roomba_cntl.cntl.linear.y = " << roomba_cntl.cntl.linear.y << std::endl;
+	  //std::cout << "g_goal.x = " << g_goal.x << std::endl;
+	  //std::cout << "g_goal.y = " << g_goal.y << std::endl;
+	  roomba_cntl.mode = is_goal(g_roomba, g_goal);
+	  //roomba_cntl.mode = 0; 
+	  //std::cout << "roomba_cntl.mode = " << roomba_cntl.mode << std::endl;
+	  //std::cout << "roomba_cntl.cntl.linear.x = " << roomba_cntl.cntl.linear.x << std::endl;
+	  //std::cout << "roomba_cntl.cntl.linear.y = " << roomba_cntl.cntl.linear.y << std::endl;
       roomba_cntl.cntl.linear.x = output.v/max_speed;
       roomba_cntl.cntl.angular.z = output.omega/max_yawrate;
       roomba_cntl_pub.publish(roomba_cntl);
