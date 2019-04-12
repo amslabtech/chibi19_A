@@ -58,7 +58,7 @@ A_star::A_star(void)
 {
 	roomba_gpath_pub = nh.advertise<nav_msgs::Path>("gpath", 1);
 	map_sub = nh.subscribe("map", 1, &A_star::map_callback,this);
-	cost_sub = nh.subscribe("cost_map", 1, &A_star::cost_callback,this);
+	cost_sub = nh.subscribe("likelihood", 1, &A_star::cost_callback,this);
 	roomba_status_sub = nh.subscribe("amcl_pose", 1, &A_star::amcl_callback, this);
 	roomba_gpath.header.frame_id = "map";
 	samp_path.header.frame_id = "map";
@@ -242,8 +242,8 @@ bool A_star::search_path(float ix, float iy, float gx, float gy)
 					x2 = x + delta[i][0];
 					y2 = y + delta[i][1];
 					if(x2 >= 0 && x2 < row && y2 >= 0 && y2 < col){
-						if(!closed[x2][y2] && grid[x2][y2] != 100){
-							g2 = g + cost + grid[x2][y2];
+						if(!closed[x2][y2] && !grid[x2][y2]){
+							g2 = g + cost;
 							h2 = heuristic[x2][y2];
 							f2 = g2 + h2;
 

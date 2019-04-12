@@ -9,7 +9,7 @@
 #include<tf/transform_listener.h>
 #include<queue>
 
-class Odom_data
+class OdomData
 {
 public:
 	geometry_msgs::Pose2D pose;
@@ -30,7 +30,7 @@ class Particle
 public:
 	Particle(void);
 	void init_set(double, double, double, double, double, double);
-	void move(Odom_data);
+	void move(OdomData);
 	void sense(void);    
 	geometry_msgs::Pose2D p_data;
 	
@@ -50,7 +50,7 @@ void estimate_pose(void);
 void filter_update(void);
 
 nav_msgs::OccupancyGrid map;
-nav_msgs::OccupancyGrid dist;
+nav_msgs::OccupancyGrid cost;
 sensor_msgs::LaserScan laser;
 geometry_msgs::PoseWithCovarianceStamped init_pose;
 geometry_msgs::PoseStamped estimated_pose;
@@ -77,8 +77,6 @@ double motion = 0.0;
 double angle = 0.0;
 double w_slow = 0.0;
 double w_fast = 0.0;
-int update_count = 0;
-int resample_interval;
 
 double alpha1;
 double alpha2;
@@ -133,7 +131,7 @@ void MapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 			tmp_pose.position.x = p.p_data.x;
 			tmp_pose.position.y = p.p_data.y;
 			tmp_pose.position.z = 0.0;
-			quaternionTFToMsg(tf::createQuaternionFromYaw(p.p_data.theta), tmp_pose.orientation);
+			tmp_pose.orientation = tf::createQuaternionMsgFromYaw(p.p_data.theta);
 			p_poses.poses.push_back(tmp_pose);
 		}
 		init_set = true;
@@ -141,25 +139,31 @@ void MapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 	
 	map_update_cspace();
 	
-/*
-	dist.info.resolution = map.info.resolution;
-	dist.info.width = map.info.width;
-	dist.info.height = map.info.height;
-	dist.info.origin = map.info.origin;
-	dist.data.resize(map.info.width * map.info.height);
 
+	cost.info.resolution = map.info.resolution;
+	cost.info.width = map.info.width;
+	cost.info.height = map.info.height;
+	cost.info.origin = map.info.origin;
+	cost.data.resize(map.info.width * map.info.height);
+
+	double dist;
 	for(int i=0; i< map.info.width; i++){
 		for(int j=0; j<map.info.height; j++){
-			if(occ_dist[map_index(i,j)] <laser_likelihood_max_dist){
-				dist.data[map_index(i,j)] = (100 / laser_likelihood_max_dist) * occ_dist[map_index(i,j)];
-			}
-			else{
-				dist.data[map_index(i,j)] = 100;
+			dist = occ_dist[map_index(i,j)];
+			
+			if(dist <= 0.6){
+				cost.data[map_index(i,j)] = 100;
+			}else if(dist > 0.6 && dist <= 0.7){
+				cost.data[map_index(i,j)] = 3;
+			}else if(dist > 0.7 && dist <= 0.75){
+				cost.data[map_index(i,j)] = 2;
+			}else if(dist > 0.75 && dist <= 0.8){
+				cost.data[map_index(i,j)] = 1;
+			}else{
+				cost.data[map_index(i,j)] = 0;
 			}
 		}
 	}
-
-*/
 
 	map_received = true;
 
@@ -180,7 +184,7 @@ void InitPoseCallback(const geometry_msgs::PoseWithCovarianceStampedConstPtr& ms
 		tmp_pose.position.x = p.p_data.x;
 		tmp_pose.position.y = p.p_data.y;
 		tmp_pose.position.z = 0.0;
-		quaternionTFToMsg(tf::createQuaternionFromYaw(p.p_data.theta), tmp_pose.orientation);
+		tmp_pose.orientation = tf::createQuaternionMsgFromYaw(p.p_data.theta);
 		p_poses.poses.push_back(tmp_pose);
 	}
 
@@ -227,16 +231,17 @@ int main(int argc, char** argv)
 
 	p_poses.header.frame_id = "map";
 	estimated_pose.header.frame_id = "map";
-	dist.header.frame_id = "map";
-	dist.header.stamp = ros::Time::now();
+	cost.header.frame_id = "map";
+	cost.header.stamp = ros::Time::now();
 
 	estimated_pose.pose.position.x = init_x;
 	estimated_pose.pose.position.y = init_y;
 	estimated_pose.pose.position.z = 0.0;
-	quaternionTFToMsg(tf::createQuaternionFromYaw(init_theta), estimated_pose.pose.orientation);	
+	estimated_pose.pose.orientation = tf::createQuaternionMsgFromYaw(init_theta);
+
 	ros::Publisher pose_pub = nh_.advertise<geometry_msgs::PoseStamped>("amcl_pose", 10);
 	ros::Publisher poses_pub = nh_.advertise<geometry_msgs::PoseArray>("particle", 10);
-	ros::Publisher dist_pub = nh_.advertise<nav_msgs::OccupancyGrid>("likelihood", 10);
+	ros::Publisher cost_pub = nh_.advertise<nav_msgs::OccupancyGrid>("cost_map", 10);
 	ros::Subscriber laser_sub = nh_.subscribe("scan", 10, LaserCallback);
 	ros::Subscriber map_sub = nh_.subscribe("map", 10, MapCallback);
 	ros::Subscriber init_sub = nh_.subscribe("initialpose", 10, InitPoseCallback);
@@ -255,7 +260,7 @@ int main(int argc, char** argv)
 	while(ros::ok())
 	{   
 		if(map_received && range_count && init_set){
-			Odom_data odom; 
+			OdomData odom; 
 			try{
 				ros::Time now = ros::Time::now();
 				listener.waitForTransform("odom", "base_link",now, ros::Duration(1.0));
@@ -315,12 +320,12 @@ int main(int argc, char** argv)
 				tmp_pose.position.x = p_cloud[i].p_data.x;
 				tmp_pose.position.y = p_cloud[i].p_data.y;
 				tmp_pose.position.z = 0.0;
-				quaternionTFToMsg(tf::createQuaternionFromYaw(p_cloud[i].p_data.theta), tmp_pose.orientation);
+				tmp_pose.orientation = tf::createQuaternionMsgFromYaw(p_cloud[i].p_data.theta);
 				p_poses.poses.push_back(tmp_pose);
 
 			}
 			poses_pub.publish(p_poses);
-		//	dist_pub.publish(dist);
+			cost_pub.publish(cost);
 			try{
 				tf::Transform map_to_base;
 				quaternionMsgToTF(estimated_pose.pose.orientation, q);
@@ -347,12 +352,9 @@ int main(int argc, char** argv)
 			catch(tf::TransformException &ex){
 				ROS_ERROR("%s", ex.what());
 			}
-
-
 		}
 		ros::spinOnce();
 		loop_rate.sleep();
-		
 	}
 
 	free(occ_dist);
@@ -452,7 +454,6 @@ void map_update_cspace(void)
 	memset(marked, 0, sizeof(unsigned char) * map.info.width*map.info.height);
 	int cell_radius = laser_likelihood_max_dist / map.info.resolution;
 	
-
 	CellData cell;
 	cell.occ_dist = occ_dist;
 	for(int i=0; i < map.info.width; i++){
@@ -516,7 +517,7 @@ void Particle::init_set(double x, double y, double theta, double x_cov, double y
 	}while(map.data[map_index(i, j)] != 0);
 }
 
-void Particle::move(Odom_data ndata)
+void Particle::move(OdomData ndata)
 {
 	double delta_rot1, delta_trans, delta_rot2;
 	double delta_rot1_hat, delta_trans_hat, delta_rot2_hat;
@@ -659,7 +660,7 @@ void estimate_pose(void)
 	y_cov = 0.0;
 	theta_cov = 0.0;
 	int count =0;
-	double threshould = 1.0 / N;
+	double threshold = 1.0 / N;
 	double avg_x = 0.0;
 	double avg_y = 0.0;
 	double avg_theta = 0.0;
@@ -672,7 +673,7 @@ void estimate_pose(void)
 		avg_y += p_cloud[i].p_data.y;
 		avg_theta += p_cloud[i].p_data.theta;
 
-		if(threshould < p_cloud[i].w){
+		if(threshold < p_cloud[i].w){
 			est_x += p_cloud[i].p_data.x;
 			est_y += p_cloud[i].p_data.y;
 			est_theta += p_cloud[i].p_data.theta;
@@ -690,7 +691,7 @@ void estimate_pose(void)
 
 	estimated_pose.pose.position.x = est_x;
 	estimated_pose.pose.position.y = est_y;
-	quaternionTFToMsg(tf::createQuaternionFromYaw(est_theta), estimated_pose.pose.orientation);
+	estimated_pose.pose.orientation = tf::createQuaternionMsgFromYaw(est_theta);
 
 	for(int i=0; i < N; i++){
 		x_cov += (p_cloud[i].p_data.x - avg_x) * (p_cloud[i].p_data.x - avg_x);
@@ -701,7 +702,6 @@ void estimate_pose(void)
 	x_cov = sqrt(x_cov / N);
 	y_cov = sqrt(y_cov / N);
 	theta_cov = sqrt(theta_cov / N);
-
 }
 
 void filter_update(void)
