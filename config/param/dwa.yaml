@@ -6,13 +6,13 @@ min_speed: 0.0
 max_accel: 5.0
 max_yawrate: 1.00
 max_dyawrate: 2.0
-robot_radius: 0.17
+roomba_radius: 0.16
 
 predict_time: 5.0
-l_ob_cost_gain: 1.0
-to_g_goal_cost_gain: 1.0
+l_ob_cost_gain: 0.20
+to_g_goal_cost_gain: 0.80
 
-limit_speed: 0.1
+limit_speed: 0.07
 limit_yawrate: 0.25
 
 dwa_only: false
