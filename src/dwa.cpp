@@ -257,7 +257,7 @@ double calc_l_ob_cost(const std::vector<Status>& traj, const std::vector<float>&
   const double right_rod_min = -1.30;
   double x = 0.0;
   double y = 0.0;
-  double ob = 0.0;
+  double ob_dist = 0.0;
   double ob_theta = 0.0;
   double dist = 0.0;
   double min_dist = inf;
@@ -276,11 +276,11 @@ double calc_l_ob_cost(const std::vector<Status>& traj, const std::vector<float>&
         continue;
       }
 
-      if(obstacle[j] < 60.0f) ob = obstacle[j];
-      else ob = 60.0;
+      if(obstacle[j] < 60.0f) ob_dist = obstacle[j];
+      else ob_dist = 60.0;
 
-	  ob.x = ob*std::cos(ob_theta);
-	  ob.y = ob*std::sin(ob_theta);
+	  ob.x = ob_dist*std::cos(ob_theta);
+	  ob.y = ob_dist*std::sin(ob_theta);
       dist = calc_dist(ob.x, x, ob.y, y);
 
       if(dist <= roomba_radius) return inf;
