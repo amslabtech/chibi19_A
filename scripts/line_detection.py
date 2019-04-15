@@ -25,11 +25,13 @@ class image_converter:
     except CvBridgeError as e:
       print(e)
     
+    detection = False
+
     gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-    cv_image2 = cv2.GaussianBlur(gray_image,(3,3),0)
-    for i in range(2):
-        cv_image2 = cv2.GaussianBlur(cv_image2,(3,3),0)
-        cv_image2 = cv2.medianBlur(cv_image2,3)
+    cv_image2 = cv2.GaussianBlur(gray_image,(7,7),0)
+    for i in range(100):
+        cv_image2 = cv2.GaussianBlur(cv_image2,(7,7),0)
+        cv_image2 = cv2.medianBlur(cv_image2,5)
 
     ret, thresh = cv2.threshold(cv_image2,160,255,0)
     image, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
@@ -50,7 +52,11 @@ class image_converter:
                 #print(float(w) / h)
                 
                 self.detection_pub1.publish("White Line")
-                self.detection_pub2.publish(True)
+                detection = True
+
+    
+    
+    self.detection_pub2.publish(detection)
 
     cv2.imshow("Image window1", thresh)
     cv2.imshow("Image window2", cv_image)
