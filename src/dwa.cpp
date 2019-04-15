@@ -257,20 +257,16 @@ double calc_l_ob_cost(const std::vector<Status>& traj, const std::vector<float>&
   const double right_rod_min = -1.30;
   double x = 0.0;
   double y = 0.0;
-  double r = 0.0;
   double ob = 0.0;
-  double c = 0.0;
-  double theta = 0.0;
   double ob_theta = 0.0;
   double dist = 0.0;
   double min_dist = inf;
   double final_dist = inf;
+  Position ob = {0.0, 0.0, 0.0};
 
   for(int i = 0; i < traj.size(); i += skip_i){
     x = traj[i].x;
     y = traj[i].y;
-    r = std::sqrt(x*x + y*y);
-    theta = atan(x, y);
     ob_theta = roomba_scan.angle_min;
 
     for(int j = 0; j < obstacle.size(); j += skip_j){
@@ -283,9 +279,9 @@ double calc_l_ob_cost(const std::vector<Status>& traj, const std::vector<float>&
       if(obstacle[j] < 60.0f) ob = obstacle[j];
       else ob = 60.0;
 
-      //極座標での２点間の距離を計算
-      c = std::cos(theta - ob_theta);
-      dist = std::sqrt(r*r + ob*ob - 2*r*ob*c);
+	  ob.x = ob*std::cos(ob_theta);
+	  ob.y = ob*std::sin(ob_theta);
+      dist = calc_dist(ob.x, x, ob.y, y);
 
       if(dist <= roomba_radius) return inf;
 
