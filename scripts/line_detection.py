@@ -28,9 +28,9 @@ class image_converter:
     detection = False
 
     gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-    cv_image2 = cv2.GaussianBlur(gray_image,(7,7),0)
+    cv_image2 = cv2.GaussianBlur(gray_image,(5,5),0)
     for i in range(10):
-        cv_image2 = cv2.GaussianBlur(cv_image2,(7,7),0)
+        cv_image2 = cv2.GaussianBlur(cv_image2,(5,5),0)
         cv_image2 = cv2.medianBlur(cv_image2,5)
 
     ret, thresh = cv2.threshold(cv_image2,160,255,0)
