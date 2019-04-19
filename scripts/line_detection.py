@@ -13,6 +13,7 @@ import numpy as np
 class image_converter:
 
   def __init__(self):
+    self.image_pub = rospy.Publisher("image",Image)
     self.detection_pub1 = rospy.Publisher("line_detection",String)
     self.detection_pub2 = rospy.Publisher("detection",Bool)
 
@@ -53,10 +54,12 @@ class image_converter:
                 
                 self.detection_pub1.publish("White Line")
                 detection = True
-
-    
     
     self.detection_pub2.publish(detection)
+    try:
+      self.image_pub.publish(self.bridge.cv2_to_imgmsg(cv_image, "bgr8"))
+    except CvBridgeError as e:
+      print(e)
 
     cv2.imshow("Image window1", thresh)
     cv2.imshow("Image window2", cv_image)
