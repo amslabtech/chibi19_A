@@ -595,23 +595,22 @@ void Particle::sense(void)
 
 		p += pow(pz, 3.0);
 	}
-	w = p;
+	w *= p;
 }
 
 void resample(double total_w)
 {	
 	std::vector<Particle> new_p_cloud;
-	new_p_cloud.resize(0);
+	new_p_cloud.clear();
 	double mw = 0.0;
 	double w_diff;
+	double w_avg = 0;;
 	if(total_w > 0.0){
-		double w_avg = 0.0;
+		w_avg = total_w / N;
 		for(int i=0; i < N; i++){
-			w_avg += p_cloud[i].w;
 			mw = std::max(mw, p_cloud[i].w);
 		}
 
-		w_avg /= N;
 		if(w_slow == 0.0)
 			w_slow = w_avg;
 		else
@@ -629,6 +628,7 @@ void resample(double total_w)
 	}
 
 	w_diff = 1.0 - (w_fast / w_slow);
+
 	if(w_diff < 0.0)
 		w_diff = 0.0;
 	
@@ -717,4 +717,3 @@ void filter_update(void)
 	
 	p_cloud = new_p_cloud;
 }
-

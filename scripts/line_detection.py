@@ -13,6 +13,7 @@ import numpy as np
 class image_converter:
 
   def __init__(self):
+    self.image_pub = rospy.Publisher("image",Image)
     self.detection_pub1 = rospy.Publisher("line_detection",String)
     self.detection_pub2 = rospy.Publisher("detection",Bool)
 
@@ -25,11 +26,11 @@ class image_converter:
     except CvBridgeError as e:
       print(e)
     
+    detection = False
+
     gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-    cv_image2 = cv2.GaussianBlur(gray_image,(3,3),0)
-    for i in range(2):
-        cv_image2 = cv2.GaussianBlur(cv_image2,(3,3),0)
-        cv_image2 = cv2.medianBlur(cv_image2,3)
+    cv_image2 = cv2.GaussianBlur(gray_image,(5,5),0)
+    cv_image2 = cv2.medianBlur(cv_image2,3)
 
     ret, thresh = cv2.threshold(cv_image2,160,255,0)
     image, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
@@ -44,13 +45,19 @@ class image_converter:
     for i in range(len(contours)):
         w, h = rects[i][1]
         if areas[i] != 0 and w != 0 and h != 0:
-            if (((float(w) / h) < 0.4) or ((float(h) / w) < 0.4))and areas[i] > 40000:
+            if (((float(w) / h) < 0.25) or ((float(h) / w) < 0.25))and areas[i] > 25000:
                 cv_image = cv2.drawContours(cv_image,[boxs[i]],0,(0,0,255),2)
                 #print(areas[i])
                 #print(float(w) / h)
                 
                 self.detection_pub1.publish("White Line")
-                self.detection_pub2.publish(True)
+                detection = True
+    
+    self.detection_pub2.publish(detection)
+    try:
+      self.image_pub.publish(self.bridge.cv2_to_imgmsg(cv_image, "bgr8"))
+    except CvBridgeError as e:
+      print(e)
 
     cv2.imshow("Image window1", thresh)
     cv2.imshow("Image window2", cv_image)

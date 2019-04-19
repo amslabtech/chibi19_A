@@ -1,5 +1,5 @@
 #パーティクルの数
-N: 600
+N: 1000
 #動作ノイズ
 alpha1: 0.2
 alpha2: 0.2
@@ -15,19 +15,19 @@ max_beam: 90
 MAX_RANGE: 25
 MIN_RANGE: 0.02
 #ランダムパーティクル
-alpha_slow: 0.002
-alpha_fast: 0.1
+alpha_slow: 0.008
+alpha_fast: 0.8
 #初期位置、分散
 init_x: -1.0
 init_y: -3.2
 init_theta: -0.3
 init_x_cov: 0.3
 init_y_cov: 0.3
-init_theta_cov: 0.25
+init_theta_cov: 0.2
 #しきい値
-x_cov_thresh: 0.12
-y_cov_thresh: 0.12
-motion_update: 0.2
+x_cov_thresh: 0.05
+y_cov_thresh: 0.05
+motion_update: 0.3
 angle_update: 0.3
 #rvizから初期位置を取得するかどうか
 use_init_pose: true
