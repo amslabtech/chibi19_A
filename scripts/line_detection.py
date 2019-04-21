@@ -28,20 +28,38 @@ class image_converter:
     
     detection = False
 
+    #gray scale, histogram equalization
     gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-    cv_image2 = cv2.GaussianBlur(gray_image,(5,5),0)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    cl_image = clahe.apply(gray_image)
+
+    #blur
+    cv_image2 = cv2.GaussianBlur(cl_image,(3,3),0)
     cv_image2 = cv2.medianBlur(cv_image2,3)
 
-    ret, thresh = cv2.threshold(cv_image2,160,255,0)
+    #opening
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+    open_image = cv2.morphologyEx(cv_image2, cv2.MORPH_OPEN,kernel, iterations = 5)
+
+    #background subtraction
+    ret,back = cv2.threshold(cv_image2, 140, 255, cv2.THRESH_TOZERO_INV)
+    img_diff = cv2.absdiff(back, open_image)
+
+    #binarize
+    ret, thresh = cv2.threshold(img_diff,160,255,0)
+
+    #find contours
     image, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
-    
     cv_image = cv2.drawContours(cv_image,contours,-1,(0,255,0),3)
 
+    #bounding rectangle
     rects = list(map(cv2.minAreaRect, contours))
     boxs = list(map(cv2.boxPoints, rects))
     boxs = list(map(np.int0, boxs))
     areas = list(map(cv2.contourArea, boxs))
     cv_image = cv2.drawContours(cv_image,boxs,-1,(255,0,0),2)
+    
+    #detection
     for i in range(len(contours)):
         w, h = rects[i][1]
         if areas[i] != 0 and w != 0 and h != 0:
@@ -59,8 +77,13 @@ class image_converter:
     except CvBridgeError as e:
       print(e)
 
-    cv2.imshow("Image window1", thresh)
-    cv2.imshow("Image window2", cv_image)
+    #cv2.imshow("back", back)
+    #cv2.imshow("diff", img_diff)
+    #cv2.imshow("open_img", open_image)
+    cv2.imshow("thresh", thresh)
+    cv2.imshow("detection", cv_image)
+    #cv2.imshow("gray", gray_image)
+    #cv2.imshow("clahe",cl_image)
     cv2.waitKey(3)
 
 
