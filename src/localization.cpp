@@ -1,10 +1,12 @@
 #include<ros/ros.h>
 #include<sensor_msgs/LaserScan.h>
+#include<std_msgs/Bool.h>
 #include<nav_msgs/OccupancyGrid.h>
 #include<geometry_msgs/PoseWithCovarianceStamped.h>
 #include<geometry_msgs/PoseStamped.h>
 #include<geometry_msgs/PoseArray.h>
 #include<geometry_msgs/Pose2D.h>
+#include<geometry_msgs/PointStamped.h>
 #include<tf/transform_broadcaster.h>
 #include<tf/transform_listener.h>
 #include<queue>
@@ -95,6 +97,7 @@ int range_count = 0.0;
 bool map_received = false;
 bool init_set = false;
 bool use_init_pose;
+bool line_detection = false;
 
 std::vector<Particle> p_cloud;
 
@@ -154,10 +157,8 @@ void MapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 			if(dist <= 0.6){
 				cost.data[map_index(i,j)] = 100;
 			}else if(dist > 0.6 && dist <= 0.7){
-				cost.data[map_index(i,j)] = 3;
-			}else if(dist > 0.7 && dist <= 0.75){
 				cost.data[map_index(i,j)] = 2;
-			}else if(dist > 0.75 && dist <= 0.8){
+			}else if(dist > 0.7 && dist <= 0.8){
 				cost.data[map_index(i,j)] = 1;
 			}else{
 				cost.data[map_index(i,j)] = 0;
@@ -190,6 +191,11 @@ void InitPoseCallback(const geometry_msgs::PoseWithCovarianceStampedConstPtr& ms
 
 	init_set = true;
 }
+
+void LineDetectionCallback(const std_msgs::Bool::ConstPtr& msg){
+	line_detection = msg->data;
+}
+
 
 int main(int argc, char** argv)
 {
@@ -238,13 +244,20 @@ int main(int argc, char** argv)
 	estimated_pose.pose.position.y = init_y;
 	estimated_pose.pose.position.z = 0.0;
 	estimated_pose.pose.orientation = tf::createQuaternionMsgFromYaw(init_theta);
+	 
+	geometry_msgs::PointStamped line_pose;
+	line_pose.header.stamp = ros::Time::now();
+	line_pose.header.frame_id = "map";
+	double check_motion;
 
 	ros::Publisher pose_pub = nh_.advertise<geometry_msgs::PoseStamped>("amcl_pose", 10);
 	ros::Publisher poses_pub = nh_.advertise<geometry_msgs::PoseArray>("particle", 10);
 	ros::Publisher cost_pub = nh_.advertise<nav_msgs::OccupancyGrid>("cost_map", 10);
+	ros::Publisher line_pub = nh_.advertise<geometry_msgs::PointStamped>("line_pose", 10);
 	ros::Subscriber laser_sub = nh_.subscribe("scan", 10, LaserCallback);
 	ros::Subscriber map_sub = nh_.subscribe("map", 10, MapCallback);
 	ros::Subscriber init_sub = nh_.subscribe("initialpose", 10, InitPoseCallback);
+	ros::Subscriber line_detection_sub = nh_.subscribe("line_detection", 10, LineDetectionCallback);
 	
 	tf::TransformListener listener;
 	tf::TransformBroadcaster map_br;
@@ -276,6 +289,8 @@ int main(int argc, char** argv)
 			odom.delta.y= latest_transform.getOrigin().y() - previous_transform.getOrigin().y();
 			odom.delta.theta = tf::getYaw(latest_transform.getRotation()) - tf::getYaw(previous_transform.getRotation());
 
+
+			check_motion += sqrt((odom.delta.x * odom.delta.x) + (odom.delta.y * odom.delta.y));
 			motion += sqrt((odom.delta.x * odom.delta.x) + (odom.delta.y * odom.delta.y));
 			angle += fabs(odom.delta.theta);
 
@@ -326,6 +341,14 @@ int main(int argc, char** argv)
 			}
 			poses_pub.publish(p_poses);
 			cost_pub.publish(cost);
+
+			if(line_detection && check_motion > 0.3){
+				line_pose.point.x = estimated_pose.pose.position.x;
+				line_pose.point.y = estimated_pose.pose.position.y;
+				line_pose.point.z = estimated_pose.pose.position.z;
+
+				line_pub.publish(line_pose);
+			}
 			try{
 				tf::Transform map_to_base;
 				quaternionMsgToTF(estimated_pose.pose.orientation, q);
