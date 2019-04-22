@@ -106,12 +106,12 @@ double atan(const double x, const double y)
 {
   double theta = 0.0;
 
-  if(std::fabs(x) < EPS){
-    if(std::fabs(y) < EPS){
+  if(std::fabs(x) <= EPS){
+    if(std::fabs(y) <= EPS){
       theta = 0.0;
-    } else if(y < 0) {
+    } else if(y < -EPS) {
       theta = -M_PI/2;
-    } else if(y > 0) {
+    } else if(y > EPS) {
       theta = M_PI/2;
     }
   } else {
@@ -127,7 +127,7 @@ double calc_dist(const double x1, const double x2, const double y1, const double
   double dx = x1 - x2;
   double dy = y1 - y2;
   double dist = 0.0;
-  
+
   dist = std::sqrt(dx*dx + dy*dy);
 
   return dist;
@@ -150,9 +150,11 @@ void motion(Status& roomba, const double v, const double y)
 void calc_l_traj(std::vector<Status>& traj, const double v, const double y)
 {
   Status roomba = {0.0, 0.0, 0.0, 0.0, 0.0};
+  int elements_t = 0;
 
   traj.clear();
-  for(double t = 0.0; t < predict_time; t += dt){
+  elements_t = int(predict_time/dt);
+  for(int t_i = 0; t_i < elements_t; t++){
     traj.push_back(roomba);
     motion(roomba, v, y);
   }
@@ -216,10 +218,9 @@ double calc_to_g_path_cost(const std::vector<Status> l_traj, const Status g_room
 		  n_g_path_p_d_i = i;
 		}
 	  }
-	  next_g_path_p_i = n_g_path_p_d_i + (int)predict_time;
+	  next_g_path_p_i = n_g_path_p_d_i + 2;
 	  if(next_g_path_p_i >= g_path.poses.size() - 10){
 		can_goal = true;
-		//std::cout << "can_goal = " << can_goal << std::endl;
 		next_g_path_p_i = g_path.poses.size() - 1;
 	  }
   } else {
@@ -264,17 +265,19 @@ double calc_l_ob_cost(const std::vector<Status> traj, const std::vector<float> o
   for(int i = 0; i < traj.size(); i += skip_i){
     x = traj[i].x;
     y = traj[i].y;
-    ob_theta = roomba_scan.angle_min;
+    //ob_theta = roomba_scan.angle_min;
 
     for(int j = 0; j < obstacle.size(); j += skip_j){
       if(( left_rod_min < ob_theta && ob_theta < left_rod_max)
       || ( right_rod_min < ob_theta && ob_theta < right_rod_max)) {
-        ob_theta += skip_j*roomba_scan.angle_increment;
+        //ob_theta += skip_j*roomba_scan.angle_increment;
         continue;
       }
 
       if(obstacle[j] < 60.0f) ob_dist = obstacle[j];
       else ob_dist = 60.0;
+
+      ob_theta = roomba_scan.angle_min + j*roomba_scan.angle_increment;
 
 	  ob.x = ob_dist*std::cos(ob_theta);
 	  ob.y = ob_dist*std::sin(ob_theta);
@@ -284,7 +287,7 @@ double calc_l_ob_cost(const std::vector<Status> traj, const std::vector<float> o
 
       if(min_dist > dist) min_dist = dist;
 
-      ob_theta += (double)skip_j*roomba_scan.angle_increment;
+      //ob_theta += skip_j*roomba_scan.angle_increment;
     }
 	//final_dist = min_dist;
   }
@@ -300,29 +303,38 @@ Speed dwa_control(const Status g_roomba, const std::vector<float> l_ob, const na
   Speed best_output = {0.0, 0.0};
   std::vector<Status> l_traj;
   double y = 0.0;
-  double ab_dwy = 0.0;
+  //double ab_dwy = 0.0;
   double min_cost = 1000.0;
   double l_ob_cost = 0.0;
   double final_cost = 0.0;
   double to_g_path_cost = 0.0;
   double min_ob_cost = 0.0;
   double min_to_gpath_cost = 0.0;
+  int elements_v = 0;
+  int elements_omega = 0;
 
   //dynamic windowの計算
   calc_dynamic_window(dw, g_roomba);
-  for(double v = dw.min_v; v <= dw.max_v; v += dv){
-    for(double dwy = dw.min_omega; dwy <= dw.max_omega; dwy += dyaw){
-	  ab_dwy = fabs(dwy);
-	  if(ab_dwy <= EPS) y = 0.0;
-	  else if(EPS < ab_dwy && ab_dwy < 0.10) continue;
-	  else y = dwy;
-      std::cout << "-------------------------------------------------------------------------------------------"
-				<< "\nv = " << v
-				<< "\ny = " << y << std::endl;
-	  std::cout << "dw.min_v = " << dw.min_v << std::endl;
-	  std::cout << "dw.max_v = " << dw.max_v << std::endl;
-	  std::cout << "dw.min_omega = " << dw.min_omega << std::endl;
-	  std::cout << "dw.max_omega = " << dw.max_omega << std::endl;
+
+  elements_v = int((dw.max_v - dw.min_v)/dv);
+  elements_omega = int((dw.max_omega - dw.min_omega)/dyaw);
+
+  //for(double v = dw.min_v; v <= dw.max_v; v += dv){
+  //  for(double dwy = dw.min_omega; dwy <= dw.max_omega; dwy += dyaw){
+  for(int v_i = 0; v_i < elements_v; v_i++){
+    v = dw.min_v + v_i*dv;
+    for(int y_i = 0; y_i < elements_omega; y_i++){
+      y = dw.min_omega + y_i*dyaw;
+	  if(fabs(y) <= EPS) y = 0.0;
+	  //else if(EPS < ab_dwy && ab_dwy < 0.10) continue;
+	  //else y = dwy;
+      //std::cout << "-------------------------------------------------------------------------------------------"
+	  //  		<< "\nv = " << v
+	  //  		<< "\ny = " << y << std::endl;
+	  //std::cout << "dw.min_v = " << dw.min_v << std::endl;
+	  //std::cout << "dw.max_v = " << dw.max_v << std::endl;
+	  //std::cout << "dw.min_omega = " << dw.min_omega << std::endl;
+	  //std::cout << "dw.max_omega = " << dw.max_omega << std::endl;
 
       //軌道計算
       calc_l_traj(l_traj, v, y);
@@ -330,20 +342,20 @@ Speed dwa_control(const Status g_roomba, const std::vector<float> l_ob, const na
       //cost計算
       l_ob_cost = calc_l_ob_cost(l_traj, l_ob);
       to_g_path_cost = calc_to_g_path_cost(l_traj, g_roomba, g_path);
-	  
+
       final_cost = to_g_path_cost + l_ob_cost;
 
       //計算結果出力
-      std::cout << "ob_cost = " << l_ob_cost << std::endl;
-      std::cout << "to_gpath_cost = " << to_g_path_cost << std::endl;
-      std::cout << "final_cost = " << final_cost << std::endl;
-      std::cout << "---------------------------------------------------------------------" << std::endl;
-      std::cout << "now best_output.v = " << best_output.v << std::endl;
-      std::cout << "now best_output.omega = " << best_output.omega << std::endl;
-      std::cout << "now min ob_cost =" << min_ob_cost << std::endl;
-      std::cout << "now min to_gpath_cost = " << min_to_gpath_cost << std::endl;
-      std::cout << "now min cost =" << min_cost << std::endl;
-      std::cout << "---------------------------------------------------------------------" << std::endl;
+      //std::cout << "ob_cost = " << l_ob_cost << std::endl;
+      //std::cout << "to_gpath_cost = " << to_g_path_cost << std::endl;
+      //std::cout << "final_cost = " << final_cost << std::endl;
+      //std::cout << "---------------------------------------------------------------------" << std::endl;
+      //std::cout << "now best_output.v = " << best_output.v << std::endl;
+      //std::cout << "now best_output.omega = " << best_output.omega << std::endl;
+      //std::cout << "now min ob_cost =" << min_ob_cost << std::endl;
+      //std::cout << "now min to_gpath_cost = " << min_to_gpath_cost << std::endl;
+      //std::cout << "now min cost =" << min_cost << std::endl;
+      //std::cout << "---------------------------------------------------------------------" << std::endl;
 
       if(min_cost > final_cost) {
         best_output.v = v;
@@ -367,7 +379,7 @@ int is_goal(const Status roomba, const Position goal)
   error_dist = calc_dist(goal.x, roomba.x, goal.y, roomba.y);
 
   if(can_goal && error_dist < roomba_radius){
-  	std::cout << "\rgoal" << std::endl;
+  	std::cout << "goal" << std::endl;
   	return 0;
   } else {
     return 11;
@@ -456,16 +468,16 @@ int main(int argc, char **argv)
   bool normalized = false;
   bool invalid_l_d = false;
   double line_dist = 0.0;
-  std::chrono::system_clock::time_point start, end;
+  //std::chrono::system_clock::time_point start, end;
 
   while (ros::ok()){
-    start = std::chrono::system_clock::now();
+    //start = std::chrono::system_clock::now();
 	output.v = 0.0;
 	output.omega = 0.0;
     normalized = is_normalized(roomba_status.pose.orientation);
     flags = !roomba_scan.ranges.empty() && !roomba_gpath.poses.empty() && normalized && get_odom && get_pose; //&& get_line_detection;
 
-	std::cout << "flags = " << flags << std::endl;
+	//std::cout << "flags = " << flags << std::endl;
     if(flags){
 	  //goal設定
 	  g_goal.x = roomba_gpath.poses.back().pose.position.x;
@@ -484,7 +496,7 @@ int main(int argc, char **argv)
 
 	  //白線検知
       if(line_detection && !invalid_l_d){
-      	roomba_cntl.mode = 0; 
+      	roomba_cntl.mode = 0;
         roomba_cntl.cntl.linear.x = 0.0;
         roomba_cntl.cntl.angular.z = 0.0;
 	    roomba_cntl_pub.publish(roomba_cntl);
@@ -507,7 +519,7 @@ int main(int argc, char **argv)
 	  roomba_cntl.cntl.angular.z = 0.0;
 
 	  roomba_cntl.mode = is_goal(g_roomba, g_goal);
-	  //roomba_cntl.mode = 0; 
+	  //roomba_cntl.mode = 0;
 	  //std::cout << "roomba_cntl.mode = " << roomba_cntl.mode << std::endl;
 	  roomba_cntl.cntl.linear.x = output.v/(2*max_speed);
 	  roomba_cntl.cntl.angular.z = output.omega/max_yawrate;
@@ -515,9 +527,9 @@ int main(int argc, char **argv)
 	  lpath_pub.publish(lpath);
 	  gpath_goal_pub.publish(gpath_goal);
     }
-    end = std::chrono::system_clock::now();
-    auto msec = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    std::cout << "duration = " << msec << " msec" << std::endl;
+    //end = std::chrono::system_clock::now();
+    //auto msec = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    //std::cout << "duration = " << msec << " msec" << std::endl;
     ros::spinOnce();
     loop_rate.sleep();
   }

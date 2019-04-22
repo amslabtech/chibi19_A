@@ -6,7 +6,7 @@ min_speed: 0.0
 max_accel: 5.0
 max_yawrate: 1.00
 max_dyawrate: 5.0
-roomba_radius: 0.20
+roomba_radius: 0.17
 
 predict_time: 10.0
 l_ob_cost_gain: 0.35
