@@ -50,7 +50,7 @@ class image_converter:
 
     #find contours
     image, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
-    cv_image = cv2.drawContours(cv_image,contours,-1,(0,255,0),3)
+    #cv_image = cv2.drawContours(cv_image,contours,-1,(0,255,0),3)
 
     #bounding rectangle
     rects = list(map(cv2.minAreaRect, contours))
@@ -58,7 +58,7 @@ class image_converter:
     boxs = list(map(np.int0, boxs))
     boxareas = list(map(cv2.contourArea, boxs))
     areas = list(map(cv2.contourArea, contours))
-    cv_image = cv2.drawContours(cv_image,boxs,-1,(255,0,0),2)
+    #cv_image = cv2.drawContours(cv_image,boxs,-1,(255,0,0),2)
 
     #detection
     for i in range(len(contours)):
