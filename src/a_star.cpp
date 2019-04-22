@@ -335,7 +335,7 @@ int main(int argc, char **argv)
 	ros::NodeHandle private_nh("~");
 	ros::Rate loop_rate(10);
 
-	const int waycount = 8;
+	const int waycount = 6;
 	std::vector<waypoint> waypoints(waycount);
 
 	private_nh.param("wx1", waypoints[0].x, 0.0);
@@ -350,10 +350,10 @@ int main(int argc, char **argv)
 	private_nh.param("wy5", waypoints[4].y, 0.0);
 	private_nh.param("wx6", waypoints[5].x, 0.0);
 	private_nh.param("wy6", waypoints[5].y, 0.0);
-	private_nh.param("wx7", waypoints[6].x, 0.0);
-	private_nh.param("wy7", waypoints[6].y, 0.0);
-	private_nh.param("wx8", waypoints[7].x, 0.0);
-	private_nh.param("wy8", waypoints[7].y, 0.0);
+	//private_nh.param("wx7", waypoints[6].x, 0.0);
+	//private_nh.param("wy7", waypoints[6].y, 0.0);
+	//private_nh.param("wx8", waypoints[7].x, 0.0);
+	//private_nh.param("wy8", waypoints[7].y, 0.0);
 
 
 	A_star as;

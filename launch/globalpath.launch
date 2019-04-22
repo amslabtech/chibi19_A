@@ -4,8 +4,12 @@
 
 	<node pkg="rviz" type="rviz" name="rviz" args="-d $(find chibi19_a)/config/rviz/globalpath.rviz"/>
 
-	<node pkg="chibi19_a" type="a_star_s" name="a_star_s" output="screen" >
+	<node pkg="chibi19_a" type="a_star" name="a_star" output="screen" >
 		<rosparam file="$(find chibi19_a)/config/param/globalpath.yaml" command="load" />
+	</node>
+
+	<node pkg="chibi19_a" type="localization" name="localization" output="screen">
+		<rosparam file="$(find chibi19_a)/config/param/localization.yaml" command="load" />
 	</node>
 </launch>
 
