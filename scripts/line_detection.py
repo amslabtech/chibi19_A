@@ -64,7 +64,7 @@ class image_converter:
     for i in range(len(contours)):
         w, h = rects[i][1]
         if boxareas[i] != 0 and w != 0 and h != 0:
-            if (((float(w) / h) < 0.23) or ((float(h) / w) < 0.23)) and boxareas[i] > 30000:
+            if (((float(w) / h) < 0.23) or ((float(h) / w) < 0.23)) and boxareas[i] > 30000 and boxareas[i] < 50000:
                 if boxareas[i] * 0.65 < areas[i]:
                     cv_image = cv2.drawContours(cv_image,[boxs[i]],0,(0,0,255),2)
                     print("area = " + str(areas[i]))

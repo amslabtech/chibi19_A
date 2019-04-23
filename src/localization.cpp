@@ -248,16 +248,16 @@ int main(int argc, char** argv)
 	geometry_msgs::PointStamped line_pose;
 	line_pose.header.stamp = ros::Time::now();
 	line_pose.header.frame_id = "map";
-	double check_motion;
+	double check_motion = 0;
 
 	ros::Publisher pose_pub = nh_.advertise<geometry_msgs::PoseStamped>("amcl_pose", 10);
 	ros::Publisher poses_pub = nh_.advertise<geometry_msgs::PoseArray>("particle", 10);
 	ros::Publisher cost_pub = nh_.advertise<nav_msgs::OccupancyGrid>("cost_map", 10);
-	ros::Publisher line_pub = nh_.advertise<geometry_msgs::PointStamped>("line_pose", 10);
+	ros::Publisher line_pub = nh_.advertise<geometry_msgs::PointStamped>("linepose", 10);
 	ros::Subscriber laser_sub = nh_.subscribe("scan", 10, LaserCallback);
 	ros::Subscriber map_sub = nh_.subscribe("map", 10, MapCallback);
 	ros::Subscriber init_sub = nh_.subscribe("initialpose", 10, InitPoseCallback);
-	ros::Subscriber line_detection_sub = nh_.subscribe("line_detection", 10, LineDetectionCallback);
+	ros::Subscriber line_detection_sub = nh_.subscribe("detection", 10, LineDetectionCallback);
 	
 	tf::TransformListener listener;
 	tf::TransformBroadcaster map_br;
@@ -346,8 +346,9 @@ int main(int argc, char** argv)
 				line_pose.point.x = estimated_pose.pose.position.x;
 				line_pose.point.y = estimated_pose.pose.position.y;
 				line_pose.point.z = estimated_pose.pose.position.z;
-
+				std::cout << "whiteline" << std::endl;
 				line_pub.publish(line_pose);
+				check_motion = 0;
 			}
 			try{
 				tf::Transform map_to_base;

@@ -154,7 +154,7 @@ void calc_l_traj(std::vector<Status>& traj, const double v, const double y)
 
   traj.clear();
   elements_t = int(predict_time/dt);
-  for(int t_i = 0; t_i < elements_t; t++){
+  for(int t_i = 0; t_i < elements_t; t_i++){
     traj.push_back(roomba);
     motion(roomba, v, y);
   }
@@ -268,6 +268,8 @@ double calc_l_ob_cost(const std::vector<Status> traj, const std::vector<float> o
     //ob_theta = roomba_scan.angle_min;
 
     for(int j = 0; j < obstacle.size(); j += skip_j){
+      ob_theta = roomba_scan.angle_min + j*roomba_scan.angle_increment;
+
       if(( left_rod_min < ob_theta && ob_theta < left_rod_max)
       || ( right_rod_min < ob_theta && ob_theta < right_rod_max)) {
         //ob_theta += skip_j*roomba_scan.angle_increment;
@@ -276,8 +278,6 @@ double calc_l_ob_cost(const std::vector<Status> traj, const std::vector<float> o
 
       if(obstacle[j] < 60.0f) ob_dist = obstacle[j];
       else ob_dist = 60.0;
-
-      ob_theta = roomba_scan.angle_min + j*roomba_scan.angle_increment;
 
 	  ob.x = ob_dist*std::cos(ob_theta);
 	  ob.y = ob_dist*std::sin(ob_theta);
@@ -302,6 +302,7 @@ Speed dwa_control(const Status g_roomba, const std::vector<float> l_ob, const na
   Dw dw = {0.0, 0.0, 0.0, 0.0};
   Speed best_output = {0.0, 0.0};
   std::vector<Status> l_traj;
+  double v = 0.0;
   double y = 0.0;
   //double ab_dwy = 0.0;
   double min_cost = 1000.0;
@@ -321,9 +322,9 @@ Speed dwa_control(const Status g_roomba, const std::vector<float> l_ob, const na
 
   //for(double v = dw.min_v; v <= dw.max_v; v += dv){
   //  for(double dwy = dw.min_omega; dwy <= dw.max_omega; dwy += dyaw){
-  for(int v_i = 0; v_i < elements_v; v_i++){
+  for(int v_i = 0; v_i <= elements_v; v_i++){
     v = dw.min_v + v_i*dv;
-    for(int y_i = 0; y_i < elements_omega; y_i++){
+    for(int y_i = 0; y_i <= elements_omega; y_i++){
       y = dw.min_omega + y_i*dyaw;
 	  if(fabs(y) <= EPS) y = 0.0;
 	  //else if(EPS < ab_dwy && ab_dwy < 0.10) continue;
@@ -346,16 +347,25 @@ Speed dwa_control(const Status g_roomba, const std::vector<float> l_ob, const na
       final_cost = to_g_path_cost + l_ob_cost;
 
       //計算結果出力
-      //std::cout << "ob_cost = " << l_ob_cost << std::endl;
-      //std::cout << "to_gpath_cost = " << to_g_path_cost << std::endl;
-      //std::cout << "final_cost = " << final_cost << std::endl;
-      //std::cout << "---------------------------------------------------------------------" << std::endl;
-      //std::cout << "now best_output.v = " << best_output.v << std::endl;
-      //std::cout << "now best_output.omega = " << best_output.omega << std::endl;
-      //std::cout << "now min ob_cost =" << min_ob_cost << std::endl;
-      //std::cout << "now min to_gpath_cost = " << min_to_gpath_cost << std::endl;
-      //std::cout << "now min cost =" << min_cost << std::endl;
-      //std::cout << "---------------------------------------------------------------------" << std::endl;
+	  if(l_ob_cost > 60){
+        std::cout << "-------------------------------------------------------------------------------------------"
+	      		<< "\nv = " << v
+	      		<< "\ny = " << y << std::endl;
+	    std::cout << "dw.min_v = " << dw.min_v << std::endl;
+	    std::cout << "dw.max_v = " << dw.max_v << std::endl;
+	    std::cout << "dw.min_omega = " << dw.min_omega << std::endl;
+	    std::cout << "dw.max_omega = " << dw.max_omega << std::endl;
+        std::cout << "ob_cost = " << l_ob_cost << std::endl;
+        std::cout << "to_gpath_cost = " << to_g_path_cost << std::endl;
+        std::cout << "final_cost = " << final_cost << std::endl;
+        std::cout << "---------------------------------------------------------------------" << std::endl;
+        std::cout << "now best_output.v = " << best_output.v << std::endl;
+        std::cout << "now best_output.omega = " << best_output.omega << std::endl;
+        std::cout << "now min ob_cost =" << min_ob_cost << std::endl;
+        std::cout << "now min to_gpath_cost = " << min_to_gpath_cost << std::endl;
+        std::cout << "now min cost =" << min_cost << std::endl;
+        std::cout << "---------------------------------------------------------------------" << std::endl;
+	  }
 
       if(min_cost > final_cost) {
         best_output.v = v;
@@ -366,6 +376,7 @@ Speed dwa_control(const Status g_roomba, const std::vector<float> l_ob, const na
 		log_best_traj(l_traj);
       }
     }
+	std::cout << "y = " << y <<std::endl;
   }
 
   return best_output;
@@ -523,6 +534,9 @@ int main(int argc, char **argv)
 	  //std::cout << "roomba_cntl.mode = " << roomba_cntl.mode << std::endl;
 	  roomba_cntl.cntl.linear.x = output.v/(2*max_speed);
 	  roomba_cntl.cntl.angular.z = output.omega/max_yawrate;
+	  std::cout << "roomba_cntl....x = " << roomba_cntl.cntl.linear.x << std::endl;
+	  std::cout << "roomba_cntl....z = " << roomba_cntl.cntl.angular.z << std::endl;
+	  std::cout << std::endl;
 	  roomba_cntl_pub.publish(roomba_cntl);
 	  lpath_pub.publish(lpath);
 	  gpath_goal_pub.publish(gpath_goal);
