@@ -89,10 +89,10 @@ class image_converter:
     except CvBridgeError as e:
       print(e)
 
-    cv2.imshow("open_img", open_image)
-    cv2.imshow("thresh", thresh)
-    cv2.imshow("detection", cv_image)
-    cv2.imshow("gray", gray_image)
+    #cv2.imshow("open_img", open_image)
+    #cv2.imshow("thresh", thresh)
+    #cv2.imshow("detection", cv_image)
+    #cv2.imshow("gray", gray_image)
     #cv2.imshow("clahe",cl_image)
     cv2.waitKey(3)
 
