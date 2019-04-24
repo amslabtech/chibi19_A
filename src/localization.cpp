@@ -249,6 +249,10 @@ int main(int argc, char** argv)
 	line_pose.header.stamp = ros::Time::now();
 	line_pose.header.frame_id = "map";
 	double check_motion = 0;
+	int pose_count = 0;
+	line_pose.point.x = 0;
+	line_pose.point.y = 0;
+	line_pose.point.z = 0;
 
 	ros::Publisher pose_pub = nh_.advertise<geometry_msgs::PoseStamped>("amcl_pose", 10);
 	ros::Publisher poses_pub = nh_.advertise<geometry_msgs::PoseArray>("particle", 10);
@@ -342,13 +346,19 @@ int main(int argc, char** argv)
 			poses_pub.publish(p_poses);
 			cost_pub.publish(cost);
 
-			if(line_detection && check_motion > 0.3){
+
+
+			if(line_detection && check_motion > 0.5){
 				line_pose.point.x = estimated_pose.pose.position.x;
 				line_pose.point.y = estimated_pose.pose.position.y;
 				line_pose.point.z = estimated_pose.pose.position.z;
-				std::cout << "whiteline" << std::endl;
+				//std::cout << "whiteline" << std::endl;
 				line_pub.publish(line_pose);
 				check_motion = 0;
+			}
+			if(pose_count<10){
+				line_pub.publish(line_pose);
+				pose_count++;
 			}
 			try{
 				tf::Transform map_to_base;
