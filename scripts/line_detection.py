@@ -72,7 +72,6 @@ class image_converter:
         if boxareas[i] != 0 and w != 0 and h != 0:
             if (((float(w) / h) < 0.17) or ((float(h) / w) < 0.17)) and boxareas[i] > 28000 and boxareas[i] < 50000:
                 if boxareas[i] * 0.73 < areas[i]:
-                    print(cy[i])
                     if cy[i] > 240:
                         cv_image = cv2.drawContours(cv_image,[boxs[i]],0,(0,0,255),2)
                         #print("area = " + str(areas[i]))
