@@ -348,7 +348,7 @@ int main(int argc, char** argv)
 
 
 
-			if(line_detection && check_motion > 0.5){
+			if(line_detection && check_motion > 0.5 && (estimated_pose.pose.position.y < 0 || estimated_pose.pose.position.y > 8)){
 				line_pose.point.x = estimated_pose.pose.position.x;
 				line_pose.point.y = estimated_pose.pose.position.y;
 				line_pose.point.z = estimated_pose.pose.position.z;

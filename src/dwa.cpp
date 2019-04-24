@@ -450,7 +450,7 @@ int main(int argc, char **argv)
   ros::Subscriber roomba_gpath_sub = n.subscribe("gpath", 1, gpath_callback);
   ros::Subscriber roomba_status_sub = n.subscribe("amcl_pose", 1, amcl_callback);
   ros::Subscriber line_detection_sub = n.subscribe("detection", 1, line_detection_callback);
-  ros::Rate loop_rate(2.0);
+  ros::Rate loop_rate(4.0);
 
   nh.param("dt", dt, 0.0);
   nh.param("dv", dv, 0.0);
@@ -506,6 +506,7 @@ int main(int argc, char **argv)
 	  g_roomba.omega = max_yawrate*roomba_odom.twist.twist.angular.z;
 
 	  //白線検知
+	  if(!(0 < g_roomba.y && g_roomba.y < 8)){
       if(line_detection && !invalid_l_d){
       	roomba_cntl.mode = 0;
         roomba_cntl.cntl.linear.x = 0.0;
@@ -516,6 +517,7 @@ int main(int argc, char **argv)
       	detected_line.x = g_roomba.x;
       	detected_line.y = g_roomba.y;
       }
+	  }
 
 	  //白線を検知して止まった場所からの距離を計算
 	  if(invalid_l_d){

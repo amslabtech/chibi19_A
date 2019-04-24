@@ -16,4 +16,4 @@ limit_speed: 0.10
 limit_yawrate: 0.25
 
 stop_time: 5.0
-ignore_line: 0.3
+ignore_line: 0.5

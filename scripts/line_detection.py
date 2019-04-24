@@ -42,11 +42,11 @@ class image_converter:
     open_image = cv2.morphologyEx(cv_image2, cv2.MORPH_OPEN,kernel, iterations = 3)
 
     #background subtraction
-    ret,back = cv2.threshold(cv_image2, 150, 255, cv2.THRESH_TOZERO_INV + cv2.THRESH_OTSU)
+    ret,back = cv2.threshold(cv_image2, 150, 255, cv2.THRESH_TOZERO_INV)
     img_diff = cv2.absdiff(back, open_image)
 
     #binarize
-    ret, thresh = cv2.threshold(img_diff,160,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    ret, thresh = cv2.threshold(img_diff,160,255,cv2.THRESH_BINARY)
 
     #find contours
     image, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
@@ -64,13 +64,14 @@ class image_converter:
     for i in range(len(contours)):
         w, h = rects[i][1]
         if boxareas[i] != 0 and w != 0 and h != 0:
-            if (((float(w) / h) < 0.23) or ((float(h) / w) < 0.23)) and boxareas[i] > 30000 and boxareas[i] < 50000:
-                if boxareas[i] * 0.65 < areas[i]:
+            if (((float(w) / h) < 0.17) or ((float(h) / w) < 0.17)) and boxareas[i] > 28000 and boxareas[i] < 50000:
+                if boxareas[i] * 0.73 < areas[i]:
                     cv_image = cv2.drawContours(cv_image,[boxs[i]],0,(0,0,255),2)
-                    print("area = " + str(areas[i]))
-                    print("boxareas = " + str(boxareas[i]))
-                    #print(float(w) / h)
-                    
+                    #print("area = " + str(areas[i]))
+                    #print("boxareas = " + str(boxareas[i]))
+                    #print("w/h=" + str(float(w) / h))
+                    #print("h/w=" + str(float(h) / w))
+                    #print("area / box = " + str(areas[i] / boxareas[i])) 
                     self.detection_pub1.publish("White Line")
                     detection = True
     
@@ -81,10 +82,10 @@ class image_converter:
       print(e)
 
     #cv2.imshow("back", back)
-    cv2.imshow("diff", img_diff)
+    #cv2.imshow("diff", img_diff)
     #cv2.imshow("open_img", open_image)
-    cv2.imshow("thresh", thresh)
-    cv2.imshow("detection", cv_image)
+    #cv2.imshow("thresh", thresh)
+    #cv2.imshow("detection", cv_image)
     #cv2.imshow("gray", gray_image)
     #cv2.imshow("clahe",cl_image)
     cv2.waitKey(3)
