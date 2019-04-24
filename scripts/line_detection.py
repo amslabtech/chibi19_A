@@ -10,6 +10,13 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import numpy as np
 
+def calc_cy(M):
+    try:
+        cy = int(M['m01']/M['m00'])
+    except KeyError:
+        cy = 0
+    return cy
+
 class image_converter:
 
   def __init__(self):
@@ -41,13 +48,9 @@ class image_converter:
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     open_image = cv2.morphologyEx(cv_image2, cv2.MORPH_OPEN,kernel, iterations = 3)
 
-    #background subtraction
-    ret,back = cv2.threshold(cv_image2, 150, 255, cv2.THRESH_TOZERO_INV)
-    img_diff = cv2.absdiff(back, open_image)
-
     #binarize
-    ret, thresh = cv2.threshold(img_diff,160,255,cv2.THRESH_BINARY)
-
+    ret, thresh = cv2.threshold(open_image,160,255,cv2.THRESH_BINARY)
+    
     #find contours
     image, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
     #cv_image = cv2.drawContours(cv_image,contours,-1,(0,255,0),3)
@@ -58,6 +61,9 @@ class image_converter:
     boxs = list(map(np.int0, boxs))
     boxareas = list(map(cv2.contourArea, boxs))
     areas = list(map(cv2.contourArea, contours))
+    M = list(map(cv2.moments, contours))
+    cy = list(map(calc_cy, M))
+
     #cv_image = cv2.drawContours(cv_image,boxs,-1,(255,0,0),2)
 
     #detection
@@ -66,14 +72,16 @@ class image_converter:
         if boxareas[i] != 0 and w != 0 and h != 0:
             if (((float(w) / h) < 0.17) or ((float(h) / w) < 0.17)) and boxareas[i] > 28000 and boxareas[i] < 50000:
                 if boxareas[i] * 0.73 < areas[i]:
-                    cv_image = cv2.drawContours(cv_image,[boxs[i]],0,(0,0,255),2)
-                    #print("area = " + str(areas[i]))
-                    #print("boxareas = " + str(boxareas[i]))
-                    #print("w/h=" + str(float(w) / h))
-                    #print("h/w=" + str(float(h) / w))
-                    #print("area / box = " + str(areas[i] / boxareas[i])) 
-                    self.detection_pub1.publish("White Line")
-                    detection = True
+                    print(cy[i])
+                    if cy[i] > 240:
+                        cv_image = cv2.drawContours(cv_image,[boxs[i]],0,(0,0,255),2)
+                        #print("area = " + str(areas[i]))
+                        #print("boxareas = " + str(boxareas[i]))
+                        #print("w/h=" + str(float(w) / h))
+                        #print("h/w=" + str(float(h) / w))
+                        #print("area / box = " + str(areas[i] / boxareas[i])) 
+                        self.detection_pub1.publish("White Line")
+                        detection = True
     
     self.detection_pub2.publish(detection)
     try:
@@ -81,12 +89,10 @@ class image_converter:
     except CvBridgeError as e:
       print(e)
 
-    #cv2.imshow("back", back)
-    #cv2.imshow("diff", img_diff)
-    #cv2.imshow("open_img", open_image)
-    #cv2.imshow("thresh", thresh)
-    #cv2.imshow("detection", cv_image)
-    #cv2.imshow("gray", gray_image)
+    cv2.imshow("open_img", open_image)
+    cv2.imshow("thresh", thresh)
+    cv2.imshow("detection", cv_image)
+    cv2.imshow("gray", gray_image)
     #cv2.imshow("clahe",cl_image)
     cv2.waitKey(3)
 
