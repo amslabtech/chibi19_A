@@ -153,8 +153,13 @@ void MapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 	for(int i=0; i< map.info.width; i++){
 		for(int j=0; j<map.info.height; j++){
 			dist = occ_dist[map_index(i,j)];
-			
-			if(dist <= 0.6){
+			if(dist < 2){
+				cost.data[map_index(i,j)] = 100 - 50 * dist;
+			}
+			else{
+				cost.data[map_index(i,j)] = -1;
+			}
+/*			if(dist <= 0.6){
 				cost.data[map_index(i,j)] = 100;
 			}else if(dist > 0.6 && dist <= 0.7){
 				cost.data[map_index(i,j)] = 2;
@@ -163,7 +168,8 @@ void MapCallback(const nav_msgs::OccupancyGridConstPtr& msg)
 			}else{
 				cost.data[map_index(i,j)] = 0;
 			}
-		}
+			
+*/		}
 	}
 
 	map_received = true;
@@ -348,7 +354,7 @@ int main(int argc, char** argv)
 
 
 
-			if(line_detection && check_motion > 0.5 && (estimated_pose.pose.position.y < 0 || estimated_pose.pose.position.y > 8)){
+			if(line_detection && check_motion > 0.5){
 				line_pose.point.x = estimated_pose.pose.position.x;
 				line_pose.point.y = estimated_pose.pose.position.y;
 				line_pose.point.z = estimated_pose.pose.position.z;
