@@ -70,7 +70,9 @@ class image_converter:
     for i in range(len(contours)):
         w, h = rects[i][1]
         if boxareas[i] != 0 and w != 0 and h != 0:
-            if (((float(w) / h) < 0.4) or ((float(h) / w) < 0.4)) and boxareas[i] > 28000:
+            if (((float(w) / h) < 0.17) or ((float(h) / w) < 0.17)) and boxareas[i] > 28000 and boxareas[i] < 50000:
+                if boxareas[i] * 0.8 < areas[i]:
+                    if cy[i] > 240:
                         cv_image = cv2.drawContours(cv_image,[boxs[i]],0,(0,0,255),2)
                         #print("area = " + str(areas[i]))
                         #print("boxareas = " + str(boxareas[i]))
@@ -87,8 +89,8 @@ class image_converter:
       print(e)
 
     #cv2.imshow("open_img", open_image)
-    cv2.imshow("thresh", thresh)
-    cv2.imshow("detection", cv_image)
+    #cv2.imshow("thresh", thresh)
+    #cv2.imshow("detection", cv_image)
     #cv2.imshow("gray", gray_image)
     #cv2.imshow("clahe",cl_image)
     cv2.waitKey(3)
